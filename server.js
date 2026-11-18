@@ -7,12 +7,15 @@ const os = require('node:os');
 const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = __dirname;
-if (process.env.NODE_ENV === 'production' && !process.env.USTAZ_DATA_DIR) throw new Error('Set USTAZ_DATA_DIR to the mounted persistent storage path before starting Ustaz.');
+const cloudMode = Boolean(process.env.DATABASE_URL);
+const cloud = cloudMode ? require('./cloud-storage') : null;
+if (process.env.NODE_ENV === 'production' && !cloudMode && !process.env.USTAZ_DATA_DIR) throw new Error('Set USTAZ_DATA_DIR to the mounted persistent storage path before starting Ustaz.');
 // Configure this to the host's persistent volume before accepting user uploads.
-const STORE = process.env.USTAZ_DATA_DIR ? path.resolve(process.env.USTAZ_DATA_DIR) : path.join(ROOT, 'data');
+const STORE = process.env.USTAZ_DATA_DIR ? path.resolve(process.env.USTAZ_DATA_DIR) : (cloudMode ? path.join(os.tmpdir(), 'ustaz') : path.join(ROOT, 'data'));
 const UPLOADS = path.join(STORE, 'uploads');
 fs.mkdirSync(UPLOADS, { recursive: true });
-const db = new DatabaseSync(path.join(STORE, 'ustaz.sqlite'));
+const db = cloudMode ? cloud.db : new DatabaseSync(path.join(STORE, 'ustaz.sqlite'));
+if (!cloudMode) {
 db.exec(`PRAGMA journal_mode=WAL;
 PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS materials (
@@ -51,6 +54,7 @@ for (const [table, column, definition] of [
   ['community_replies','status',"TEXT NOT NULL DEFAULT 'pending'"], ['community_replies','reviewed_at','TEXT']
 ]) if (!db.prepare(`PRAGMA table_info(${table})`).all().some(col => col.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 
+}
 const ADMIN_FILE = path.join(STORE, 'admin-password.txt');
 let adminPassword = process.env.USTAZ_ADMIN_PASSWORD;
 if (process.env.NODE_ENV === 'production' && !adminPassword) throw new Error('Set USTAZ_ADMIN_PASSWORD in the production environment before starting Ustaz.');
@@ -131,7 +135,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, service: 'ustaz-local' });
     if (req.method === 'GET' && url.pathname === '/api/materials') {
-      const rows = db.prepare("SELECT id,title,description,kind,subject,grade,author,language,source_url,source_type,original_name,mime,status,created_at,reviewed_at,reviewer_note FROM materials WHERE status='published' ORDER BY created_at DESC").all();
+      const rows = (await db.prepare("SELECT id,title,description,kind,subject,grade,author,language,source_url,source_type,original_name,mime,status,created_at,reviewed_at,reviewer_note FROM materials WHERE status='published' ORDER BY created_at DESC").all());
       return send(res, 200, rows);
     }
     if (req.method === 'POST' && url.pathname === '/api/planner/draft') {
@@ -140,7 +144,7 @@ const server = http.createServer(async (req, res) => {
       if (!/^[a-f0-9-]{36}$/i.test(String(draft.id||''))) return send(res,400,{error:'Жоспар нобайының идентификаторы қате / Неверный идентификатор черновика'});
       if (!Array.isArray(draft.fields) || draft.fields.length !== 13 || draft.fields.some(x => typeof x !== 'string' || x.length > 5000) || !Array.isArray(draft.rows) || draft.rows.length > 50 || draft.rows.some(row => !Array.isArray(row) || row.length !== 5 || row.some(x => typeof x !== 'string' || x.length > 5000)) || !Array.isArray(draft.materials) || draft.materials.length > 40) return send(res,400,{error:'Жоспар құрылымы жарамсыз / Недопустимая структура плана'});
       const payload = JSON.stringify({fields:draft.fields,rows:draft.rows,materials:draft.materials,documentLanguage:draft.documentLanguage==='ru'?'ru':'kk',author:validText(draft.author,100)?draft.author:''}), now = new Date().toISOString();
-      db.prepare('INSERT INTO planner_drafts(id,payload,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').run(draft.id,payload,now);
+      (await db.prepare('INSERT INTO planner_drafts(id,payload,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').run(draft.id,payload,now));
       return send(res,200,{ok:true,saved:true,updated_at:now});
     }
     if (req.method === 'POST' && url.pathname === '/api/planner/commit') {
@@ -155,22 +159,23 @@ const server = http.createServer(async (req, res) => {
       if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(textContent)) flags.push('email');
       if (/(?:\+?7|8)[\s().-]*\d{3}[\s().-]*\d{3}[\s().-]*\d{2}[\s().-]*\d{2}/.test(textContent) || /\b\d{12}\b/.test(textContent)) flags.push('personal-number');
       const now = new Date().toISOString(), status = flags.length ? 'pending' : 'published', note = flags.length ? 'Автоматты тексеру жеке байланыс не сәйкестендіру нөмірін байқады; жариялау тоқтатылды / Автопроверка обнаружила контактные или идентификационные данные; публикация отложена' : 'Автоматты тексеруден өтті / Автоматическая проверка пройдена', filename = id + '.doc', tempPath = path.join(UPLOADS,id+'.tmp'), finalPath = path.join(UPLOADS,filename);
-      fs.writeFileSync(tempPath,Buffer.from('\uFEFF'+html,'utf8')); fs.renameSync(tempPath,finalPath);
-      db.prepare(`INSERT INTO materials(id,title,description,kind,subject,grade,author,language,source_url,source_type,rights_confirmed,filename,original_name,mime,status,created_at,reviewed_at,reviewer_note)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,subject=excluded.subject,grade=excluded.grade,author=excluded.author,language=excluded.language,source_type=excluded.source_type,rights_confirmed=1,filename=excluded.filename,original_name=excluded.original_name,mime=excluded.mime,status=excluded.status,reviewed_at=excluded.reviewed_at,reviewer_note=excluded.reviewer_note`).run(id,title,description,'lesson',subject,grade,author,language,'','teacher_original',1,filename,language==='ru'?'Краткосрочный план.doc':'Қысқа мерзімді жоспар.doc','application/msword',status,now,now,note);
-      db.prepare('DELETE FROM planner_drafts WHERE id=?').run(id);
+      if (cloudMode) await cloud.put(filename,Buffer.from('\uFEFF'+html,'utf8'),'application/msword');
+      else { fs.writeFileSync(tempPath,Buffer.from('\uFEFF'+html,'utf8')); fs.renameSync(tempPath,finalPath); }
+      (await db.prepare(`INSERT INTO materials(id,title,description,kind,subject,grade,author,language,source_url,source_type,rights_confirmed,filename,original_name,mime,status,created_at,reviewed_at,reviewer_note)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,subject=excluded.subject,grade=excluded.grade,author=excluded.author,language=excluded.language,source_type=excluded.source_type,rights_confirmed=1,filename=excluded.filename,original_name=excluded.original_name,mime=excluded.mime,status=excluded.status,reviewed_at=excluded.reviewed_at,reviewer_note=excluded.reviewer_note`).run(id,title,description,'lesson',subject,grade,author,language,'','teacher_original',1,filename,language==='ru'?'Краткосрочный план.doc':'Қысқа мерзімді жоспар.doc','application/msword',status,now,now,note));
+      (await db.prepare('DELETE FROM planner_drafts WHERE id=?').run(id));
       return send(res,200,{ok:true,status,autoModerated:true,message:note,review_url:status==='published'?`/download/${id}`:null,updated_at:now});
     }
     if (req.method === 'GET' && url.pathname === '/api/community') {
-      const posts = db.prepare("SELECT * FROM community_posts WHERE status='published' ORDER BY created_at DESC LIMIT 100").all();
-      const replies = db.prepare("SELECT * FROM community_replies WHERE status='published' ORDER BY created_at").all();
+      const posts = (await db.prepare("SELECT * FROM community_posts WHERE status='published' ORDER BY created_at DESC LIMIT 100").all());
+      const replies = (await db.prepare("SELECT * FROM community_replies WHERE status='published' ORDER BY created_at").all());
       return send(res, 200, posts.map(p => ({...p, replies: replies.filter(r => r.post_id === p.id)})));
     }
     if (req.method === 'POST' && url.pathname === '/api/community') {
       if (!rateLimit(communityRate, req, 5, 60 * 60 * 1000)) return send(res,429,{error:'Бір сағатта 5 жазбаға дейін / Не более 5 публикаций в час'});
       const b = JSON.parse((await readBody(req, 12000)).toString('utf8') || '{}');
       if (!['topic','question'].includes(b.kind) || !validText(b.title,140) || !validText(b.message,3000) || !validText(b.author,80) || b.terms_accepted !== true) return send(res,400,{error:'Тақырыпты толтырып, жариялау шартын қабылдаңыз / Заполните тему и примите правила публикации'});
-      const id=crypto.randomUUID(); db.prepare("INSERT INTO community_posts(id,kind,title,message,author,language,status,created_at) VALUES(?,?,?,?,?,?,'pending',?)").run(id,b.kind,b.title,b.message,b.author,b.language==='ru'?'ru':'kk',new Date().toISOString());
+      const id=crypto.randomUUID(); (await db.prepare("INSERT INTO community_posts(id,kind,title,message,author,language,status,created_at) VALUES(?,?,?,?,?,?,'pending',?)").run(id,b.kind,b.title,b.message,b.author,b.language==='ru'?'ru':'kk',new Date().toISOString()));
       return send(res,201,{ok:true,id,status:'pending'});
     }
     const replyMatch=url.pathname.match(/^\/api\/community\/([a-f0-9-]+)\/replies$/i);
@@ -178,16 +183,16 @@ const server = http.createServer(async (req, res) => {
       if (!rateLimit(communityRate, req, 5, 60 * 60 * 1000)) return send(res,429,{error:'Бір сағатта 5 жауапқа дейін / Не более 5 ответов в час'});
       const b=JSON.parse((await readBody(req,6000)).toString('utf8')||'{}');
       if(!validText(b.message,2000)||!validText(b.author,80)||b.terms_accepted!==true)return send(res,400,{error:'Жауапты толтырып, жариялау шартын қабылдаңыз / Заполните ответ и примите правила публикации'});
-      if(!db.prepare("SELECT id FROM community_posts WHERE id=? AND status='published'").get(replyMatch[1]))return send(res,404,{error:'Тақырып табылмады / Тема не найдена'});
-      db.prepare("INSERT INTO community_replies(id,post_id,message,author,language,status,created_at) VALUES(?,?,?,?,?,'pending',?)").run(crypto.randomUUID(),replyMatch[1],b.message,b.author,b.language==='ru'?'ru':'kk',new Date().toISOString());return send(res,201,{ok:true,status:'pending'});
+      if(!(await db.prepare("SELECT id FROM community_posts WHERE id=? AND status='published'").get(replyMatch[1])))return send(res,404,{error:'Тақырып табылмады / Тема не найдена'});
+      (await db.prepare("INSERT INTO community_replies(id,post_id,message,author,language,status,created_at) VALUES(?,?,?,?,?,'pending',?)").run(crypto.randomUUID(),replyMatch[1],b.message,b.author,b.language==='ru'?'ru':'kk',new Date().toISOString()));return send(res,201,{ok:true,status:'pending'});
     }
     const reportMatch=url.pathname.match(/^\/api\/community\/(posts|replies)\/([a-f0-9-]+)\/report$/i);
     if(req.method==='POST'&&reportMatch){
       if(!rateLimit(communityRate,req,5,60*60*1000))return send(res,429,{error:'Шағым лимитіне жеттіңіз / Превышен лимит жалоб'});
       const b=JSON.parse((await readBody(req,3000)).toString('utf8')||'{}'),type=reportMatch[1]==='posts'?'post':'reply';
       if(!validText(b.reason,500))return send(res,400,{error:'Себебін қысқаша жазыңыз / Кратко укажите причину'});
-      const table=type==='post'?'community_posts':'community_replies';if(!db.prepare(`SELECT id FROM ${table} WHERE id=? AND status='published'`).get(reportMatch[2]))return send(res,404,{error:'Жазба табылмады / Запись не найдена'});
-      db.prepare('INSERT INTO community_reports(id,target_type,target_id,reason,language,status,created_at) VALUES(?,?,?,?,?,\'pending\',?)').run(crypto.randomUUID(),type,reportMatch[2],b.reason,b.language==='ru'?'ru':'kk',new Date().toISOString());return send(res,201,{ok:true});
+      const table=type==='post'?'community_posts':'community_replies';if(!(await db.prepare(`SELECT id FROM ${table} WHERE id=? AND status='published'`).get(reportMatch[2])))return send(res,404,{error:'Жазба табылмады / Запись не найдена'});
+      (await db.prepare('INSERT INTO community_reports(id,target_type,target_id,reason,language,status,created_at) VALUES(?,?,?,?,?,\'pending\',?)').run(crypto.randomUUID(),type,reportMatch[2],b.reason,b.language==='ru'?'ru':'kk',new Date().toISOString()));return send(res,201,{ok:true});
     }
     if (req.method === 'POST' && url.pathname === '/api/feedback') {
       const ip = (process.env.USTAZ_TRUST_PROXY === '1' ? (req.headers['x-forwarded-for'] || '').split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown', now = Date.now(), times = (feedbackRate.get(ip) || []).filter(t => now - t < 60 * 60 * 1000);
@@ -196,7 +201,7 @@ const server = http.createServer(async (req, res) => {
       if (!['suggestion','translation','bug','resource'].includes(body.category)) return send(res, 400, { error: 'Пікір түрін таңдаңыз / Выберите тип отзыва' });
       if (!validText(body.title, 140) || !validText(body.message, 3000)) return send(res, 400, { error: 'Тақырып пен пікірді толтырыңыз / Заполните тему и сообщение' });
       const id = crypto.randomUUID();
-      db.prepare('INSERT INTO feedback(id,category,title,message,language,status,created_at) VALUES(?,?,?,?,?,\'pending\',?)').run(id,body.category,body.title,body.message,body.language==='ru'?'ru':'kk',new Date().toISOString());
+      (await db.prepare('INSERT INTO feedback(id,category,title,message,language,status,created_at) VALUES(?,?,?,?,?,\'pending\',?)').run(id,body.category,body.title,body.message,body.language==='ru'?'ru':'kk',new Date().toISOString()));
       times.push(now); feedbackRate.set(ip,times);
       return send(res, 201, { ok:true, message:'Пікіріңіз қабылданды. Рақмет! / Отзыв принят. Спасибо!' });
     }
@@ -219,9 +224,10 @@ const server = http.createServer(async (req, res) => {
       const htmlWord = ext === '.doc' && textStart.startsWith('<!doctype html') && textStart.includes('<meta name="generator" content="ustaz plan builder">');
       if ((ext === '.pdf' && sig.toString() !== '%PDF-') || (['.docx','.xlsx','.pptx','.odt','.ods','.odp'].includes(ext) && !(sig[0] === 0x50 && sig[1] === 0x4b)) || (['.doc','.xls','.ppt'].includes(ext) && !(sig[0] === 0xd0 && sig[1] === 0xcf) && !htmlWord)) return send(res, 415, { error: 'Файл кеңейтімі мен мазмұны сәйкес емес / Тип файла не совпадает с содержимым' });
       const id = crypto.randomUUID(), filename = id + ext;
-      fs.writeFileSync(path.join(UPLOADS, filename), file.data, { flag: 'wx' });
-      db.prepare(`INSERT INTO materials(id,title,description,kind,subject,grade,author,language,source_url,source_type,rights_confirmed,filename,original_name,mime,status,created_at)
-        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`).run(id,f.title,f.description,f.kind,f.subject||'',f.grade||'',f.author,f.language==='ru'?'ru':'kk',f.source_url||'',f.source_type,1,filename,file.originalName,info[0],new Date().toISOString());
+      if (cloudMode) await cloud.put(filename,file.data,info[0]);
+      else fs.writeFileSync(path.join(UPLOADS, filename), file.data, { flag: 'wx' });
+      (await db.prepare(`INSERT INTO materials(id,title,description,kind,subject,grade,author,language,source_url,source_type,rights_confirmed,filename,original_name,mime,status,created_at)
+        VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,'pending',?)`).run(id,f.title,f.description,f.kind,f.subject||'',f.grade||'',f.author,f.language==='ru'?'ru':'kk',f.source_url||'',f.source_type,1,filename,file.originalName,info[0],new Date().toISOString()));
       return send(res, 201, { ok: true, status: 'pending', message: 'Материал тексеруге жіберілді / Материал отправлен на проверку' });
     }
     if (req.method === 'POST' && url.pathname === '/api/admin/login') {
@@ -234,49 +240,50 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isAdmin(req)) return send(res, 401, { error: 'Әкімші ретінде кіріңіз / Войдите как администратор' });
-      if (req.method === 'GET' && url.pathname === '/api/admin/pending') return send(res, 200, db.prepare("SELECT * FROM materials WHERE status='pending' ORDER BY created_at").all().map(safeRow));
-      if (req.method === 'GET' && url.pathname === '/api/admin/feedback') return send(res, 200, db.prepare("SELECT * FROM feedback WHERE status='pending' ORDER BY created_at").all());
+      if (req.method === 'GET' && url.pathname === '/api/admin/pending') return send(res, 200, (await db.prepare("SELECT * FROM materials WHERE status='pending' ORDER BY created_at").all()).map(safeRow));
+      if (req.method === 'GET' && url.pathname === '/api/admin/feedback') return send(res, 200, (await db.prepare("SELECT * FROM feedback WHERE status='pending' ORDER BY created_at").all()));
       if (req.method === 'GET' && url.pathname === '/api/admin/community') {
-        const posts=db.prepare("SELECT id,'post' AS item_type,kind,title AS heading,message,author,language,created_at FROM community_posts WHERE status='pending' ORDER BY created_at").all();
-        const replies=db.prepare("SELECT id,'reply' AS item_type,'reply' AS kind,'Жауап / Ответ' AS heading,message,author,language,created_at FROM community_replies WHERE status='pending' ORDER BY created_at").all();
+        const posts=(await db.prepare("SELECT id,'post' AS item_type,kind,title AS heading,message,author,language,created_at FROM community_posts WHERE status='pending' ORDER BY created_at").all());
+        const replies=(await db.prepare("SELECT id,'reply' AS item_type,'reply' AS kind,'Жауап / Ответ' AS heading,message,author,language,created_at FROM community_replies WHERE status='pending' ORDER BY created_at").all());
         return send(res,200,[...posts,...replies].sort((a,b)=>a.created_at.localeCompare(b.created_at)));
       }
-      if(req.method==='GET'&&url.pathname==='/api/admin/community/reports')return send(res,200,db.prepare("SELECT * FROM community_reports WHERE status='pending' ORDER BY created_at").all());
+      if(req.method==='GET'&&url.pathname==='/api/admin/community/reports')return send(res,200,(await db.prepare("SELECT * FROM community_reports WHERE status='pending' ORDER BY created_at").all()));
       const reportReview=url.pathname.match(/^\/api\/admin\/community\/reports\/([a-f0-9-]+)\/(dismiss|hide)$/i);
       if(req.method==='POST'&&reportReview){
-        const report=db.prepare("SELECT * FROM community_reports WHERE id=? AND status='pending'").get(reportReview[1]);if(!report)return send(res,404,{error:'Шағым табылмады / Жалоба не найдена'});
-        if(reportReview[2]==='hide'){const table=report.target_type==='post'?'community_posts':'community_replies';db.prepare(`UPDATE ${table} SET status='rejected',reviewed_at=? WHERE id=? AND status='published'`).run(new Date().toISOString(),report.target_id)}
-        db.prepare("UPDATE community_reports SET status=?,reviewed_at=? WHERE id=?").run(reportReview[2]==='hide'?'actioned':'reviewed',new Date().toISOString(),report.id);return send(res,200,{ok:true});
+        const report=(await db.prepare("SELECT * FROM community_reports WHERE id=? AND status='pending'").get(reportReview[1]));if(!report)return send(res,404,{error:'Шағым табылмады / Жалоба не найдена'});
+        if(reportReview[2]==='hide'){const table=report.target_type==='post'?'community_posts':'community_replies';(await db.prepare(`UPDATE ${table} SET status='rejected',reviewed_at=? WHERE id=? AND status='published'`).run(new Date().toISOString(),report.target_id))}
+        (await db.prepare("UPDATE community_reports SET status=?,reviewed_at=? WHERE id=?").run(reportReview[2]==='hide'?'actioned':'reviewed',new Date().toISOString(),report.id));return send(res,200,{ok:true});
       }
       const communityReview=url.pathname.match(/^\/api\/admin\/community\/(posts|replies)\/([a-f0-9-]+)\/(approve|reject)$/i);
       if(req.method==='POST'&&communityReview){
         const [,table,id,action]=communityReview, status=action==='approve'?'published':'rejected';
-        const result=db.prepare(`UPDATE community_${table} SET status=?,reviewed_at=? WHERE id=? AND status='pending'`).run(status,new Date().toISOString(),id);
+        const result=(await db.prepare(`UPDATE community_${table} SET status=?,reviewed_at=? WHERE id=? AND status='pending'`).run(status,new Date().toISOString(),id));
         if(!result.changes)return send(res,404,{error:'Жазба табылмады / Запись не найдена'});
         return send(res,200,{ok:true,status});
       }
       const feedbackReview = url.pathname.match(/^\/api\/admin\/feedback\/([a-f0-9-]+)\/review$/i);
       if (req.method === 'POST' && feedbackReview) {
-        const result = db.prepare("UPDATE feedback SET status='reviewed',reviewed_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),feedbackReview[1]);
+        const result = (await db.prepare("UPDATE feedback SET status='reviewed',reviewed_at=? WHERE id=? AND status='pending'").run(new Date().toISOString(),feedbackReview[1]));
         if (!result.changes) return send(res, 404, {error:'Пікір табылмады / Отзыв не найден'});
         return send(res, 200, {ok:true});
       }
       const action = url.pathname.match(/^\/api\/admin\/([a-f0-9-]+)\/(approve|reject)$/i);
       if (req.method === 'POST' && action) {
-        const row = db.prepare('SELECT * FROM materials WHERE id=?').get(action[1]); if (!row) return send(res, 404, { error: 'Материал табылмады / Материал не найден' });
-        if (action[2] === 'approve') db.prepare("UPDATE materials SET status='published',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id);
-        else { db.prepare("UPDATE materials SET status='rejected',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id); fs.rmSync(path.join(UPLOADS,row.filename), {force:true}); }
+        const row = (await db.prepare('SELECT * FROM materials WHERE id=?').get(action[1])); if (!row) return send(res, 404, { error: 'Материал табылмады / Материал не найден' });
+        if (action[2] === 'approve') (await db.prepare("UPDATE materials SET status='published',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id));
+        else { (await db.prepare("UPDATE materials SET status='rejected',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id)); if (cloudMode) await cloud.remove(row.filename); else fs.rmSync(path.join(UPLOADS,row.filename), {force:true}); }
         return send(res, 200, { ok: true });
       }
       return send(res, 404, { error: 'Not found' });
     }
-    if (req.method === 'GET' && (url.pathname.startsWith('/files/') || url.pathname.startsWith('/view/'))) {
+    if (req.method === 'GET' && (url.pathname.startsWith('/files/') || url.pathname.startsWith('/view/') || url.pathname.startsWith('/download/'))) {
       const viewMode = url.pathname.startsWith('/view/');
-      const row = db.prepare("SELECT filename,original_name,mime FROM materials WHERE id=? AND status='published'").get(path.basename(url.pathname.slice(viewMode ? 6 : 7)));
+      const row = (await db.prepare("SELECT filename,original_name,mime FROM materials WHERE id=? AND status='published'").get(path.basename(url.pathname.slice(url.pathname.startsWith('/download/') ? 10 : viewMode ? 6 : 7))));
       if (!row) return send(res, 404, { error: 'Файл табылмады / Файл не найден' });
-      const filePath = path.join(UPLOADS, row.filename); if (!fs.existsSync(filePath)) return send(res, 404, { error: 'Файл табылмады / Файл не найден' });
+      const filePath = path.join(UPLOADS, row.filename); if (!cloudMode && !fs.existsSync(filePath)) return send(res, 404, { error: 'Файл табылмады / Файл не найден' });
+      const cloudFile = cloudMode ? await cloud.read(row.filename) : null;
       const disposition = viewMode && row.mime === 'application/pdf' ? 'inline' : 'attachment';
-      res.writeHead(200, {'Content-Type': row.mime, 'Content-Disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(row.original_name)}`, 'X-Content-Type-Options':'nosniff', 'Cache-Control':'no-store'}); return fs.createReadStream(filePath).pipe(res);
+      res.writeHead(200, {'Content-Type': row.mime, 'Content-Disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(row.original_name)}`, 'X-Content-Type-Options':'nosniff', 'Cache-Control':'no-store'}); return cloudMode ? res.end(cloudFile) : fs.createReadStream(filePath).pipe(res);
     }
     if (req.method === 'GET' && ['/expanded-plans.js', '/planner-builder.js', '/release-guards.js', '/open-source-links.js', '/journal-shortcuts.js'].includes(url.pathname)) {
       res.writeHead(200, {'Content-Type':'application/javascript; charset=utf-8', 'Cache-Control':'no-store'});
