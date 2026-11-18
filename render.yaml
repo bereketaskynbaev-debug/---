@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: ustaz-lesson-plans
+    runtime: docker
+    plan: starter
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    disk:
+      name: ustaz-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: USTAZ_DATA_DIR
+        value: /var/data
+      - key: USTAZ_TRUST_PROXY
+        value: "1"
+      - key: USTAZ_ADMIN_PASSWORD
+        generateValue: true
