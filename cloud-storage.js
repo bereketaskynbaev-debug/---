@@ -4,7 +4,7 @@ const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3,
   connectionTimeoutMillis: 15000, idleTimeoutMillis: 30000 });
 pool.on('error', () => console.error('Database connection interrupted'));
 const base = process.env.SUPABASE_URL;
-const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const secret = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim().replace(/^Bearer\s+/i,'').replace(/^(['"])(.*)\1$/,'$2');
 if (!base || !secret || !process.env.DATABASE_URL) throw new Error('Configure Supabase server environment variables');
 if (!/^https:\/\/[^/]+\.supabase\.co\/?$/.test(base)) throw new Error('Invalid Supabase URL');
 const bucket = 'ustaz-materials';
@@ -24,7 +24,8 @@ exports.db = { prepare(sql) {
 async function objectRequest(name, method, data, mime) {
   if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(name)) throw new Error('Invalid storage name');
   const response = await fetch(base.replace(/\/$/,'') + '/storage/v1/object/' + bucket + '/' + encodeURIComponent(name), {
-    method, headers: { apikey: secret, Authorization: 'Bearer ' + secret,
+    method, headers: { apikey: secret,
+      ...(!secret.startsWith('sb_') ? {Authorization: 'Bearer ' + secret} : {}),
       ...(data ? {'Content-Type': mime || 'application/octet-stream', 'x-upsert':'true'} : {}) },
     body: data, signal: AbortSignal.timeout(45000)
   });
