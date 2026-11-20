@@ -28,7 +28,13 @@ async function objectRequest(name, method, data, mime) {
       ...(data ? {'Content-Type': mime || 'application/octet-stream', 'x-upsert':'true'} : {}) },
     body: data, signal: AbortSignal.timeout(45000)
   });
-  if (!response.ok) throw new Error('Storage operation failed: ' + response.status);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    const code = String(detail.error || detail.code || '').replace(/[^a-zA-Z0-9 _-]/g,'').slice(0,100);
+    const message = String(detail.message || '').replace(/Bearer\s+\S+|sb_secret_\S+|eyJ\S+/gi,'[redacted]').slice(0,240);
+    console.error('Storage response:', response.status, code, message);
+    throw new Error('Storage operation failed: ' + response.status + ' ' + code);
+  }
   return response;
 }
 exports.put = async (name, data, mime) => { await objectRequest(name, 'POST', data, mime); };
