@@ -189,6 +189,15 @@
         const title=document.createElement('input');title.id='pbBookTitle';title.maxLength=250;title.required=true;title.value=old?.textbook?.title||'';titleLabel.append(title);manual.append(titleLabel);source.insertBefore(manual,content);
         const contentHeading=document.createElement('h3');contentHeading.textContent=ru?'3. Тема урока':'3. Сабақ тақырыбы';content.append(contentHeading);
         const topicField=form.querySelector('[data-pb-field="4"]');topicField.id='pbLessonTopic';topicField.placeholder=ru?'Например: Обыкновенные дроби':'Мысалы: Жай бөлшектер';content.append(topicField.closest('label'));
+        const topicChoiceLabel=document.createElement('label');topicChoiceLabel.className='pb-field';topicChoiceLabel.textContent=ru?'Выбрать готовую тему':'Дайын тақырыпты таңдау';
+        const topicChoice=document.createElement('select');topicChoice.id='pbTopicSelect';topicChoiceLabel.append(topicChoice);topicField.closest('label').before(topicChoiceLabel);
+        const topicHelp=document.createElement('p');topicHelp.className='pb-book-hint';topicHelp.textContent=ru?'Примерные темы по предмету и классу. Полное оглавление этого издания пока не подключено. Можно ввести свою тему ниже.':'Пән мен сынып бойынша үлгі тақырыптар. Бұл басылымның толық мазмұны әзірге қосылмаған. Төменде өз тақырыбыңызды енгізуге болады.';topicChoiceLabel.after(topicHelp);
+        let selectedTopicIndex=-1;
+        function fillTopicChoices(translate=false){const g=Number((gradeSelect.value.match(/\d+/)||[])[0]||0),ideas=getTopicIdeas(subjectSelect.value,g,outputRu());topicChoice.replaceChildren(new Option(outputRu()?'Выберите тему или введите свою…':'Тақырыпты таңдаңыз немесе өзіңіз енгізіңіз…',''));ideas.forEach((text,i)=>topicChoice.add(new Option(text,String(i))));if(translate&&selectedTopicIndex>=0&&ideas[selectedTopicIndex]){topicChoice.value=String(selectedTopicIndex);topicField.value=ideas[selectedTopicIndex];topicField.dispatchEvent(new Event('input',{bubbles:true}));}else selectedTopicIndex=-1;}
+        topicChoice.addEventListener('change',()=>{selectedTopicIndex=topicChoice.value===''?-1:Number(topicChoice.value);if(selectedTopicIndex>=0){topicField.value=topicChoice.selectedOptions[0].textContent;topicField.dispatchEvent(new Event('input',{bubbles:true}));}});
+        topicField.addEventListener('input',()=>{if(topicChoice.selectedOptions[0]?.textContent!==topicField.value){selectedTopicIndex=-1;topicChoice.value='';}});
+        docLang.addEventListener('change',()=>fillTopicChoices(true));
+        [subjectSelect,gradeSelect,picker].forEach(el=>el.addEventListener('change',()=>fillTopicChoices()));fillTopicChoices();
         const autoStatus=document.createElement('p');autoStatus.id='pbAutoStatus';autoStatus.className='pb-book-hint';autoStatus.setAttribute('aria-live','polite');autoStatus.textContent=ru?'Введите тему — план автоматически заполнится ниже.':'Тақырыпты енгізіңіз — жоспар төменде автоматты толтырылады.';content.append(autoStatus);const viewPlan=document.createElement('button');viewPlan.type='button';viewPlan.className='secondary';viewPlan.textContent=ru?'Посмотреть составленный план':'Құрастырылған жоспарды көру';viewPlan.onclick=()=>{renderPreview();panel.querySelector('#pbPreviewBox').scrollIntoView({block:'start',behavior:'smooth'});};content.append(viewPlan);
         const optional=document.createElement('details');const summary=document.createElement('summary');summary.textContent=ru?'Добавить параграф или задание (необязательно)':'Параграф немесе тапсырма қосу (міндетті емес)';optional.append(summary);content.append(optional);
         const labels=ru?['Страницы / параграф','Текст параграфа или задания (до 2000 символов)']:['Беттер / параграф','Параграф не тапсырма мәтіні (2000 таңбаға дейін)'];
@@ -223,11 +232,11 @@
         refreshBooks();
       }
 
-      let previous=null,timer=0;
+      let previous=null,timer=0;let generatedLanguage=docLang.value;
       const regenerate=()=>{const d=readData();if(!d.fields[0]||!d.fields[1]||!d.fields[4])return;
 
         if(textbookMode&&!d.textbook.title)return;
-        const next=quickPlanDraft(d.fields[0],d.fields[1],d.fields[4],outputRu());
+        const next=quickPlanDraft(d.fields[0],d.fields[1],d.fields[4],outputRu());generatedLanguage=docLang.value;
         if(textbookMode){const r=outputRu(),ref=[d.textbook.title,d.textbook.pages].filter(Boolean).join(' · '),text=d.textbook.excerpt;
           if(text){next.rows[1][1]=(r?'Прочитайте и разберите фрагмент учебника: ':'Оқулық үзіндісін оқып, талдаңыз: ')+text;
           next.rows[1][2]=r?'Выделяют ключевые понятия, составляют вопросы к фрагменту и объясняют его содержание.':'Тірек ұғымдарды анықтап, үзіндіге сұрақ құрастырады және мазмұнын түсіндіреді.';
@@ -244,7 +253,7 @@
       };
       const queue=()=>{clearTimeout(timer);timer=setTimeout(regenerate,450);};
       [subjectSelect,gradeSelect,customSubjectInput,customGradeInput,form.querySelector('[data-pb-field="4"]'),docLang].forEach(el=>{el.addEventListener('input',queue);el.addEventListener('change',queue);});
-      const note=panel.querySelector('.pb-language>span');if(note)note.textContent=ru?'Автозаполнение создаёт шаблон на выбранном языке. Ваши правки сохраняются при смене темы.':'Автотолтыру таңдалған тілде үлгі жасайды. Тақырып ауысқанда өз түзетулеріңіз сақталады.';
+      const note=panel.querySelector('.pb-language>span');if(note)note.textContent=ru?'Текст создаётся на языке готового плана. Язык обучения в классе фильтрует учебники. Введённый вами текст автоматически не переводится.':'Жоспар мәтіні «Дайын жоспар тілі» бойынша құрылады. Сыныптың оқыту тілі тек оқулықтар тізімін сүзеді. Өз мәтініңіз автоматты аударылмайды.';
       if(textbookMode)['pbBookSelect','pbBookTitle','pbBookPages','pbBookText'].forEach(id=>{const input=form.querySelector('#'+id);input.addEventListener('input',queue);input.addEventListener('change',queue);});
       regenerate();
     }
