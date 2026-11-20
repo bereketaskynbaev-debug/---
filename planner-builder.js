@@ -201,7 +201,7 @@
           const sources=TEXTBOOK_CONTENTS[book?.id]||[];
           const topics=verified?VERIFIED_TOC_MATH5_RU:sources.flatMap((s,part)=>s.rows.map(r=>[r[0],r[1],r[2],s.part]));activeTopics=topics;
           topicChoice.replaceChildren(new Option(outputRu()?'Выберите параграф или введите свою тему…':'Параграфты таңдаңыз немесе тақырыпты енгізіңіз…',''));
-          topics.forEach((row,i)=>topicChoice.add(new Option((row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]+' · ':'')+(row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]+' · ':'')+(row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]+' · ':'')+(row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]+' · ':'')+row[0]+'. '+row[1]+' · '+(outputRu()?'стр. ':'бет ')+row[2],String(i))));
+          topics.forEach((row,i)=>topicChoice.add(new Option((row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]+' · ':'')+row[0]+'. '+row[1]+' · '+(outputRu()?'стр. ':'бет ')+row[2],String(i))));
           topicChoice.disabled=!topics.length;selectedTopicIndex=-1;
           topicHelp.textContent=sources.length?(outputRu()?'Темы из PDF издательства: '+topics.length+'. Список относится к PDF издательства; часть и страницы указаны в списке. Сверьте издание по ссылке учебника.':'Баспаның PDF оқулығынан алынған тақырыптар: '+topics.length+'. Қолжетімді бөлімдер тізімде көрсетілген. Басылымды оқулық сілтемесімен салыстырыңыз.'):verified?(outputRu()?'Проверено по оглавлению: часть 1, страницы 221–222. Все 35 нумерованных параграфов первой части. Темы второй части ещё не подключены. Названия приведены на языке учебника.':'Мазмұн бойынша тексерілді: 1-бөлім, 221–222-беттер. Бірінші бөлімнің барлық 35 нөмірленген параграфы. Екінші бөлім әзірге қосылмаған. Атаулар оқулық тілінде берілген.'):(outputRu()?'Оглавление этого издания ещё не проверено. Введите свою тему или откройте учебник по ссылке ниже.':'Бұл басылымның мазмұны әзірге тексерілмеген. Өз тақырыбыңызды енгізіңіз немесе төмендегі сілтемеден оқулықты ашыңыз.');
         }
@@ -219,7 +219,7 @@
         let available=[];
         function showBook(clear=false){
           const book=available.find(b=>b.id===picker.value),isManual=picker.value==='__other';
-          if(clear){title.value='';form.querySelector('#pbBookPages').value='';form.querySelector('#pbBookText').value='';}
+          if(clear){title.value='';topicField.value='';topicChoice.value='';selectedTopicIndex=-1;form.querySelector('#pbBookPages').value='';form.querySelector('#pbBookText').value='';}
           manual.hidden=!isManual;content.hidden=!book&&!isManual;links.replaceChildren();
           if(book){title.value=bookTitle(book);details.textContent=[book.title,book.authors,book.year,book.publisher,book.track].filter(Boolean).join(' · ');book.urls.forEach((url,i)=>{const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=(ru?'Открыть учебник':'Оқулықты ашу')+(book.urls.length>1?` (${i+1})`:'');links.append(link);});if(!book.urls.length)details.append(document.createTextNode(ru?' · Прямая ссылка в перечне отсутствует.':' · Тізімде тікелей сілтеме жоқ.'));}
           else details.textContent=available.length?(ru?'Выберите издание, которое используется в вашем классе.':'Сыныбыңызда қолданылатын басылымды таңдаңыз.'):(ru?'В загруженном перечне нет учебника для этого выбора. Можно указать свой.':'Жүктелген тізімде осы таңдау үшін оқулық жоқ. Өз оқулығыңызды көрсетуге болады.');
