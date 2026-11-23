@@ -23,10 +23,12 @@ exports.db = { prepare(sql) {
 }};
 async function objectRequest(name, method, data, mime) {
   if (!/^[a-f0-9-]+\.[a-z0-9]+$/i.test(name)) throw new Error('Invalid storage name');
-  const response = await fetch(base.replace(/\/$/,'') + '/storage/v1/object/' + bucket + '/' + encodeURIComponent(name), {
+  // Plans are overwritten during autosave. Bypass cached copies when reading them.
+  const versionQuery = method === 'GET' ? '?cacheNonce=' + Date.now() : '';
+  const response = await fetch(base.replace(/\/$/,'') + '/storage/v1/object/' + bucket + '/' + encodeURIComponent(name) + versionQuery, {
     method, headers: { apikey: secret,
       ...(!secret.startsWith('sb_') ? {Authorization: 'Bearer ' + secret} : {}),
-      ...(data ? {'Content-Type': mime || 'application/octet-stream', 'x-upsert':'true'} : {}) },
+      ...(data ? {'Content-Type': mime || 'application/octet-stream', 'x-upsert':'true', 'cache-control':'max-age=0, must-revalidate'} : {}) },
     body: data, signal: AbortSignal.timeout(45000)
   });
   if (!response.ok) {

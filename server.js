@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
+const zlib = require('node:zlib');
 const { DatabaseSync } = require('node:sqlite');
 
 const ROOT = __dirname;
@@ -165,7 +166,7 @@ const server = http.createServer(async (req, res) => {
       (await db.prepare(`INSERT INTO materials(id,title,description,kind,subject,grade,author,language,source_url,source_type,rights_confirmed,filename,original_name,mime,status,created_at,reviewed_at,reviewer_note)
         VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,description=excluded.description,subject=excluded.subject,grade=excluded.grade,author=excluded.author,language=excluded.language,source_type=excluded.source_type,rights_confirmed=1,filename=excluded.filename,original_name=excluded.original_name,mime=excluded.mime,status=excluded.status,reviewed_at=excluded.reviewed_at,reviewer_note=excluded.reviewer_note`).run(id,title,description,'lesson',subject,grade,author,language,'','teacher_original',1,filename,language==='ru'?'Краткосрочный план.doc':'Қысқа мерзімді жоспар.doc','application/msword',status,now,now,note));
       (await db.prepare('DELETE FROM planner_drafts WHERE id=?').run(id));
-      return send(res,200,{ok:true,status,autoModerated:true,message:note,review_url:status==='published'?`/download/${id}`:null,updated_at:now});
+      return send(res,200,{ok:true,status,autoModerated:true,message:note,review_url:status==='published'?`/download/${id}?v=${encodeURIComponent(now)}`:null,updated_at:now});
     }
     if (req.method === 'GET' && url.pathname === '/api/community') {
       const posts = (await db.prepare("SELECT * FROM community_posts WHERE status='published' ORDER BY created_at DESC LIMIT 100").all());
@@ -287,6 +288,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {'Content-Type': row.mime, 'Content-Disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(row.original_name)}`, 'X-Content-Type-Options':'nosniff', 'Cache-Control':'no-store'}); return cloudMode ? res.end(cloudFile) : fs.createReadStream(filePath).pipe(res);
     }
     if (req.method === 'GET' && ['/expanded-plans.js', '/planner-builder.js', '/release-guards.js', '/open-source-links.js', '/journal-shortcuts.js'].includes(url.pathname)) {
+      if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
+        const body = zlib.gzipSync(fs.readFileSync(path.join(ROOT, path.basename(url.pathname))));
+        res.writeHead(200, {'Content-Type':'application/javascript; charset=utf-8', 'Content-Encoding':'gzip', 'Vary':'Accept-Encoding', 'Cache-Control':'no-store'});
+        return res.end(body);
+      }
       res.writeHead(200, {'Content-Type':'application/javascript; charset=utf-8', 'Cache-Control':'no-store'});
       return fs.createReadStream(path.join(ROOT, path.basename(url.pathname))).pipe(res);
     }
