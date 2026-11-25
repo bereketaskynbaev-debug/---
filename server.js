@@ -137,7 +137,14 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, service: 'ustaz-local' });
     if (req.method === 'GET' && url.pathname === '/api/materials') {
       const rows = (await db.prepare("SELECT id,title,description,kind,subject,grade,author,language,source_url,source_type,original_name,mime,status,created_at,reviewed_at,reviewer_note FROM materials WHERE status='published' AND id <> '990daf73-9371-4c1e-8782-b93e10a8defe' ORDER BY created_at DESC").all());
-      return send(res, 200, rows);
+      return send(res,200,rows.filter(m=>m.author?.trim()&&!/техническая проверка приложения|техникалық тексеру/i.test(m.title)&&(m.kind!=='lesson'||m.reviewer_note==='curriculum-reviewed')));
+    }
+    // New private draft IDs are derived from a device-held secret, independent of public material IDs.
+    const privateDraftId=secret=>{const hex=crypto.createHash('sha256').update('ustaz-private:'+secret).digest('hex');return [hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20,32)].join('-');};
+    if(req.method==='DELETE'&&url.pathname==='/api/planner/draft'){
+      const {secret}=JSON.parse((await readBody(req,2048)).toString('utf8')||'{}');
+      if(!/^[a-f0-9-]{36}$/i.test(String(secret||'')))return send(res,400,{ok:false});
+      await db.prepare('DELETE FROM planner_drafts WHERE id=?').run(privateDraftId(secret));return send(res,200,{ok:true});
     }
     if (req.method === 'POST' && url.pathname === '/api/planner/draft') {
       if (!rateLimit(plannerDraftRate, req, 180, 10 * 60 * 1000)) return send(res,429,{error:'Автоматты сақтау жиілігі шектелді. Біраздан соң жалғастырыңыз / Слишком частое автосохранение. Попробуйте позже'});
@@ -146,7 +153,7 @@ const server = http.createServer(async (req, res) => {
       if (!Array.isArray(draft.fields) || draft.fields.length !== 13 || draft.fields.some(x => typeof x !== 'string' || x.length > 5000) || !Array.isArray(draft.rows) || draft.rows.length > 50 || draft.rows.some(row => !Array.isArray(row) || row.length !== 5 || row.some(x => typeof x !== 'string' || x.length > 5000)) || !Array.isArray(draft.materials) || draft.materials.length > 40) return send(res,400,{error:'Жоспар құрылымы жарамсыз / Недопустимая структура плана'});
       if (draft.textbook && (typeof draft.textbook !== 'object' || typeof draft.textbook.title !== 'string' || draft.textbook.title.length > 250 || typeof draft.textbook.pages !== 'string' || draft.textbook.pages.length > 100 || typeof draft.textbook.excerpt !== 'string' || draft.textbook.excerpt.length > 2000)) return send(res,400,{error:'Недопустимые данные учебника / Оқулық деректері жарамсыз'});
       const payload = JSON.stringify({textbook:draft.textbook?{title:draft.textbook.title,pages:draft.textbook.pages,excerpt:draft.textbook.excerpt}:null,fields:draft.fields,rows:draft.rows,materials:draft.materials,documentLanguage:draft.documentLanguage==='ru'?'ru':'kk',author:validText(draft.author,100)?draft.author:''}), now = new Date().toISOString();
-      (await db.prepare('INSERT INTO planner_drafts(id,payload,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').run(draft.id,payload,now));
+      (await db.prepare('INSERT INTO planner_drafts(id,payload,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET payload=excluded.payload,updated_at=excluded.updated_at').run(/^[a-f0-9-]{36}$/i.test(String(draft.secret||''))?privateDraftId(draft.secret):draft.id,payload,now));
       return send(res,200,{ok:true,saved:true,updated_at:now});
     }
     if (req.method === 'POST' && url.pathname === '/api/planner/commit') {
@@ -160,7 +167,7 @@ const server = http.createServer(async (req, res) => {
       const textContent = html.replace(/<[^>]*>/g,' ').replace(/&(?:nbsp|#\d+|#x[\da-f]+);/gi,' '), flags=[];
       if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(textContent)) flags.push('email');
       if (/(?:\+?7|8)[\s().-]*\d{3}[\s().-]*\d{3}[\s().-]*\d{2}[\s().-]*\d{2}/.test(textContent) || /\b\d{12}\b/.test(textContent)) flags.push('personal-number');
-      const now = new Date().toISOString(), status = flags.length ? 'pending' : 'published', note = flags.length ? 'Автоматты тексеру жеке байланыс не сәйкестендіру нөмірін байқады; жариялау тоқтатылды / Автопроверка обнаружила контактные или идентификационные данные; публикация отложена' : 'Автоматты тексеруден өтті / Автоматическая проверка пройдена', filename = id + '.doc', tempPath = path.join(UPLOADS,id+'.tmp'), finalPath = path.join(UPLOADS,filename);
+      const now = new Date().toISOString(), status = 'pending', note = flags.length ? 'Автоматты тексеру жеке байланыс не сәйкестендіру нөмірін байқады; жариялау тоқтатылды / Автопроверка обнаружила контактные или идентификационные данные; публикация отложена' : 'Автоматты тексеруден өтті / Автоматическая проверка пройдена', filename = id + '.doc', tempPath = path.join(UPLOADS,id+'.tmp'), finalPath = path.join(UPLOADS,filename);
       if (cloudMode) await cloud.put(filename,Buffer.from('\uFEFF'+html,'utf8'),'application/msword');
       else { fs.writeFileSync(tempPath,Buffer.from('\uFEFF'+html,'utf8')); fs.renameSync(tempPath,finalPath); }
       (await db.prepare(`INSERT INTO materials(id,title,description,kind,subject,grade,author,language,source_url,source_type,rights_confirmed,filename,original_name,mime,status,created_at,reviewed_at,reviewer_note)
@@ -242,7 +249,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isAdmin(req)) return send(res, 401, { error: 'Әкімші ретінде кіріңіз / Войдите как администратор' });
-      if (req.method === 'GET' && url.pathname === '/api/admin/pending') return send(res, 200, (await db.prepare("SELECT * FROM materials WHERE status='pending' ORDER BY created_at").all()).map(safeRow));
+      if (req.method === 'GET' && url.pathname === '/api/admin/pending') return send(res, 200, (await db.prepare("SELECT * FROM materials WHERE status='pending' OR (status='published' AND kind='lesson' AND reviewer_note<>'curriculum-reviewed') ORDER BY created_at").all()).map(safeRow));
       if (req.method === 'GET' && url.pathname === '/api/admin/feedback') return send(res, 200, (await db.prepare("SELECT * FROM feedback WHERE status='pending' ORDER BY created_at").all()));
       if (req.method === 'GET' && url.pathname === '/api/admin/community') {
         const posts=(await db.prepare("SELECT id,'post' AS item_type,kind,title AS heading,message,author,language,created_at FROM community_posts WHERE status='pending' ORDER BY created_at").all());
@@ -269,10 +276,20 @@ const server = http.createServer(async (req, res) => {
         if (!result.changes) return send(res, 404, {error:'Пікір табылмады / Отзыв не найден'});
         return send(res, 200, {ok:true});
       }
+      const previewId=url.pathname.match(/^\/api\/admin\/([a-f0-9-]{36})\/file$/i);
+      if(req.method==='GET'&&previewId){
+        const row=await db.prepare('SELECT * FROM materials WHERE id=?').get(previewId[1]);
+        if(!row?.filename)return send(res,404,{error:'Файл отсутствует'});
+        const data=cloudMode?await cloud.read(row.filename):fs.readFileSync(path.join(UPLOADS,path.basename(row.filename)));
+        res.writeHead(200,{'Content-Type':row.mime||'application/octet-stream','Content-Disposition':"attachment; filename*=UTF-8''"+encodeURIComponent(row.original_name||'material'),'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});return res.end(data);
+      }
       const action = url.pathname.match(/^\/api\/admin\/([a-f0-9-]+)\/(approve|reject)$/i);
       if (req.method === 'POST' && action) {
         const row = (await db.prepare('SELECT * FROM materials WHERE id=?').get(action[1])); if (!row) return send(res, 404, { error: 'Материал табылмады / Материал не найден' });
-        if (action[2] === 'approve') (await db.prepare("UPDATE materials SET status='published',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id));
+        if(action[2]==='approve'&&row.kind==='lesson'){
+          if(req.headers['x-curriculum-reviewed']!=='yes')return send(res,400,{error:'Требуется подтверждение проверки программы / Бағдарламаны тексеруді растаңыз'});
+          await db.prepare("UPDATE materials SET status='published',reviewed_at=?,reviewer_note='curriculum-reviewed' WHERE id=?").run(new Date().toISOString(),row.id);
+        }else if (action[2] === 'approve') (await db.prepare("UPDATE materials SET status='published',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id));
         else { (await db.prepare("UPDATE materials SET status='rejected',reviewed_at=? WHERE id=?").run(new Date().toISOString(), row.id)); if (cloudMode) await cloud.remove(row.filename); else fs.rmSync(path.join(UPLOADS,row.filename), {force:true}); }
         return send(res, 200, { ok: true });
       }

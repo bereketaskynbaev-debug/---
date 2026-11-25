@@ -255,16 +255,16 @@
  fields[7]=lessonActivity[3];fields[11]=lessonActivity[4];rows[0][1]=lessonActivity[1];rows[2][1]=rows[2][2]=lessonActivity[2];rows[2][3]=lessonActivity[3];
  return {fields,rows};
 };
-  function openPlanner(mode='textbook'){
+  function openPlanner(mode='textbook',resume=false){
     const textbookMode=mode==='textbook',quick=mode==='quick'||textbookMode,draftKey=textbookMode?'ustaz-qmj-textbook-draft':quick?'ustaz-qmj-quick-draft':'ustaz-qmj-draft',idKey=textbookMode?'ustaz-qmj-textbook-server-id':quick?'ustaz-qmj-quick-server-id':'ustaz-qmj-server-id';
     if(!panel){alert(uiRu()?'Конструктор плана недоступен. Обновите страницу.':'Жоспар құрастыру терезесі табылмады. Бетті жаңартыңыз.');return}
-    panel.dataset.mode=mode;const ru=uiRu(),t=ru?{
+    panel.setAttribute('role','dialog');panel.setAttribute('aria-modal','true');panel.setAttribute('aria-label',uiRu()?'Конструктор плана':'Жоспар құрастыру');panel.dataset.mode=mode;const ru=uiRu(),t=ru?{
       title:'Конструктор плана урока',tag:'ГОТОВЫЙ РЕДАКТИРУЕМЫЙ ПЛАН',intro:'Выберите предмет, класс и язык документа. Заполните тему, цели и этапы, затем прикрепите материалы из каталога или добавьте свои ссылки.',
       language:'Язык готового плана',subject:'Предмет',grade:'Класс',other:'Свой вариант…',customSubject:'Введите предмет',customGrade:'Например, 10 класс / профильный курс',date:'Дата',duration:'Продолжительность',topic:'Тема урока',code:'Код цели обучения (если есть)',goal:'Цель урока',outcome:'Ожидаемый результат и критерии успеха',values:'Ценности / межпредметная связь',differentiation:'Дифференциация и индивидуальная поддержка',safety:'Безопасность и инклюзия',homework:'Домашнее задание',reflection:'Рефлексия учителя / следующий шаг',
       topicIdeas:'Идеи тем для выбранного предмета и класса',topicIdeasHint:'Это стартовые примеры. Выберите подсказку или впишите свою тему; сверьте её с программой школы.',chooseSubjectFirst:'Выберите предмет и класс, чтобы увидеть идеи.',
       stages:'Этапы урока',stageHint:'Редактируйте предложенную структуру или добавляйте и удаляйте этапы.',cols:['Этап и время','Действия учителя','Действия ученика','Оценивание / обратная связь','Ресурсы'],addStage:'＋ Добавить этап',removeStage:'Удалить этап',
       materials:'Материалы по теме',materialsHint:'Прикрепите материалы из каталога или добавьте ссылку на презентацию, видео, игру, рабочий лист и другой ресурс.',catalog:'Подходящие материалы каталога',kind:'Тип',materialTitle:'Название материала',url:'Ссылка (URL)',note:'Комментарий',addMaterial:'Добавить материал',removeMaterial:'Удалить',noMaterials:'Пока материалы не добавлены.',search:'Тема',find:'Найти в каталоге',
-      saveHeading:'Автосохранение и автоматическая проверка',saveHint:'После изменений черновик сохраняется на сервере. Для отправки в библиотеку подтвердите права и нажмите кнопку сохранения.',author:'Автор или псевдоним',rights:'Подтверждаю, что составил(а) этот план и могу его опубликовать.',savePlan:'Сохранить и проверить сейчас',pendingSaved:'План сохранён в материалах. Автопроверка отложила публикацию из-за возможных личных данных.',publishedSaved:'План сохранён и автоматически опубликован в общей библиотеке.',openSaved:'Открыть сохранённый план ↗',serverDraftSaved:'Черновик автоматически сохранён на сервере.',serverSaving:'Сохраняем черновик на сервере…',serverSaveFailed:'Не удалось сохранить на сервер. Проверьте подключение и повторите попытку.',serverRequired:'Для сохранения в общие материалы запустите run-server.bat и откройте приложение по адресу сервера.',
+      saveHeading:'Автосохранение и автоматическая проверка',saveHint:'После изменений черновик сохраняется на сервере. Для отправки в библиотеку подтвердите права и нажмите кнопку сохранения.',author:'Автор или псевдоним',rights:'Подтверждаю, что составил(а) этот план и могу его опубликовать.',savePlan:'Сохранить и проверить сейчас',pendingSaved:'Материал отправлен на проверку.',publishedSaved:'План сохранён и автоматически опубликован в общей библиотеке.',openSaved:'Открыть сохранённый план ↗',serverDraftSaved:'Черновик автоматически сохранён на сервере.',serverSaving:'Сохраняем черновик на сервере…',serverSaveFailed:'Не удалось сохранить на сервер. Проверьте подключение и повторите попытку.',serverRequired:'Для сохранения в общие материалы запустите run-server.bat и откройте приложение по адресу сервера.',
       preview:'Предпросмотр',download:'Скачать план Word',downloadAfterSave:'Сначала сохраните план в материалах приложения.',clear:'Очистить черновик',close:'Закрыть',saved:'Черновик сохранён в этом браузере',cleared:'Черновик очищен',required:'Укажите предмет, класс, тему и цель обучения; добавьте хотя бы один этап.',badUrl:'Укажите полную ссылку, начинающуюся с https:// или http://.',
       fieldNames:['Предмет','Класс','Дата','Продолжительность','Тема урока','Код цели обучения','Цель урока','Ожидаемый результат и критерии успеха','Ценности / межпредметная связь','Дифференциация и индивидуальная поддержка','Безопасность и инклюзия','Домашнее задание','Рефлексия учителя / следующий шаг'],kindNames:['Презентация','Видео','Игра','Рабочий лист','Задания','Ссылка','Другое','Изображение'],
       placeholders:['ДД.ММ.ГГГГ','45 минут','Кратко и конкретно','Например, 5.1.2.3','Чему научится ученик?','Наблюдаемые результаты и критерии','Ценность / связь с другим предметом','Поддержка, усложнение, темп','Безопасная и доступная среда','Задание и ожидаемый результат','Что получилось и что изменить в следующий раз?'],
@@ -275,7 +275,7 @@
       topicIdeas:'Таңдалған пән мен сыныпқа арналған тақырып идеялары',topicIdeasHint:'Бұлар — бастапқы үлгілер. Бірін таңдаңыз немесе өз тақырыбыңызды енгізіп, мектеп бағдарламасымен салыстырыңыз.',chooseSubjectFirst:'Идеяларды көру үшін пән мен сыныпты таңдаңыз.',
       stages:'Сабақ кезеңдері',stageHint:'Ұсынылған құрылымды өңдеңіз немесе кезеңдерді қосып, өшіріңіз.',cols:['Кезең және уақыт','Мұғалім әрекеті','Оқушы әрекеті','Бағалау / кері байланыс','Ресурстар'],addStage:'＋ Кезең қосу',removeStage:'Кезеңді өшіру',
       materials:'Тақырыпқа сай материалдар',materialsHint:'Каталогтан материал тіркеңіз немесе презентация, видео, ойын, жұмыс парағы және басқа ресурс сілтемесін қосыңыз.',catalog:'Каталогтағы сәйкес материалдар',kind:'Түрі',materialTitle:'Материал атауы',url:'Сілтеме (URL)',note:'Түсініктеме',addMaterial:'Материал қосу',removeMaterial:'Өшіру',noMaterials:'Әзірше материал қосылмады.',search:'Тақырып',find:'Каталогтан іздеу',
-      saveHeading:'Серверге автоматты сақтау және тексеру',saveHint:'Өзгертілген жоба серверде сақталады. Кітапханаға жіберу үшін құқықты растап, сақтау батырмасын басыңыз.',author:'Автор немесе лақап ат',rights:'Бұл жоспарды өзім құрастырғанымды және жариялауға құқығым бар екенін растаймын.',savePlan:'Қазір сақтау және тексеру',pendingSaved:'Жоспар қолданба материалдарына сақталды. Жеке дерек болуы мүмкін болғандықтан автоматты тексеру жариялауды тоқтатты.',publishedSaved:'Жоспар сақталып, автоматты түрде ортақ кітапханаға жарияланды.',openSaved:'Сақталған жоспарды ашу ↗',serverDraftSaved:'Нобай серверге автоматты түрде сақталды.',serverSaving:'Нобай серверге сақталып жатыр…',serverSaveFailed:'Серверге сақтау болмады. Байланысты тексеріп, қайталап көріңіз.',serverRequired:'Ортақ материалдарға сақтау үшін run-server.bat файлын іске қосып, қолданбаны сервер мекенжайымен ашыңыз.',
+      saveHeading:'Серверге автоматты сақтау және тексеру',saveHint:'Өзгертілген жоба серверде сақталады. Кітапханаға жіберу үшін құқықты растап, сақтау батырмасын басыңыз.',author:'Автор немесе лақап ат',rights:'Бұл жоспарды өзім құрастырғанымды және жариялауға құқығым бар екенін растаймын.',savePlan:'Қазір сақтау және тексеру',pendingSaved:'Материал тексеруге жіберілді.',publishedSaved:'Жоспар сақталып, автоматты түрде ортақ кітапханаға жарияланды.',openSaved:'Сақталған жоспарды ашу ↗',serverDraftSaved:'Нобай серверге автоматты түрде сақталды.',serverSaving:'Нобай серверге сақталып жатыр…',serverSaveFailed:'Серверге сақтау болмады. Байланысты тексеріп, қайталап көріңіз.',serverRequired:'Ортақ материалдарға сақтау үшін run-server.bat файлын іске қосып, қолданбаны сервер мекенжайымен ашыңыз.',
       preview:'Алдын ала қарау',download:'Word жоспарын жүктеу',downloadAfterSave:'Алдымен жоспарды қолданба материалдарына сақтаңыз.',clear:'Нобайды тазарту',close:'Жабу',saved:'Нобай осы браузерде сақталды',cleared:'Нобай тазартылды',required:'Пәнді, сыныпты, тақырыпты және оқу мақсатын толтырып, кемінде бір кезең қосыңыз.',badUrl:'https:// немесе http:// деп басталатын толық сілтемені енгізіңіз.',
       fieldNames:['Пән','Сынып','Күні','Сабақ ұзақтығы','Сабақ тақырыбы','Оқу мақсатының коды','Сабақтың мақсаты','Күтілетін нәтиже және жетістік өлшемдері','Құндылық / пәнаралық байланыс','Саралау және жеке қолдау','Қауіпсіздік және инклюзия','Үй тапсырмасы','Мұғалім рефлексиясы / келесі қадам'],kindNames:['Презентация','Видео','Ойын','Жұмыс парағы','Тапсырмалар','Сілтеме','Басқа','Сурет'],
       placeholders:['КК.АА.ЖЖЖЖ','45 минут','Қысқа әрі нақты жазыңыз','Мысалы, 5.1.2.3','Оқушы нені үйренеді?','Бақылауға болатын нәтиже мен өлшемдер','Құндылық / басқа пәнмен байланыс','Қолдау, күрделендіру, уақыт','Қауіпсіз әрі қолжетімді орта','Тапсырма және күтілетін нәтиже','Не сәтті болды, келесі жолы нені өзгерту керек?'],
@@ -284,6 +284,26 @@
     if(quick){t.title=ru?'Быстрый план урока':'Жылдам сабақ жоспары';t.intro=ru?'Выберите класс, предмет и введите тему — остальные разделы заполнятся автоматически. Это редактируемый шаблон: проверьте задания и соответствие программе. Код цели обучения укажите по своей программе.':'Сыныпты, пәнді таңдап, тақырыпты енгізіңіз — қалған бөлімдер автоматты толтырылады. Бұл өңделетін үлгі: тапсырмалар мен бағдарламаға сәйкестігін тексеріңіз. Оқу мақсаты кодын бағдарламаңыздан енгізіңіз.';}
     if(textbookMode){t.title=ru?'Создать план урока':'Сабақ жоспарын жасау';t.intro=ru?'Выберите класс и предмет, затем учебник и тему урока. После ввода темы разделы плана заполнятся автоматически. Все поля можно редактировать.':'Сынып пен пәнді, содан кейін оқулық пен сабақ тақырыбын таңдаңыз. Тақырыпты енгізгеннен кейін жоспар бөлімдері автоматты толтырылады. Барлық өрісті өңдеуге болады.';}
     const old=(()=>{try{return JSON.parse(localStorage.getItem(draftKey)||'null')}catch{return null}})();
+    const archiveKey=draftKey+'-archive';
+    function archives(){try{return JSON.parse(localStorage.getItem(archiveKey)||'[]');}catch{return [];}}
+    if(!resume&&(old||archives().length)){
+      panel.innerHTML='<section class="plan-builder" style="padding:24px"><h2></h2><p></p><select aria-label="Черновики / Жобалар"></select><div class="pb-actions"></div></section>';
+      panel.querySelector('h2').textContent=ru?'Начать план урока':'Сабақ жоспарын бастау';
+      panel.querySelector('p').textContent=ru?'Начните с пустого плана или выберите свой черновик с этого устройства.':'Жаңа жоспарды бастаңыз немесе осы құрылғыдағы жобаңызды таңдаңыз.';
+      const select=panel.querySelector('select'),list=archives(),current=()=>({data:old,id:localStorage.getItem(idKey),secret:localStorage.getItem(idKey+'-secret')});
+      const options=old?[current(),...list]:list;
+      options.forEach((item,i)=>select.add(new Option([item.data.fields[4]||(ru?'Без темы':'Тақырыпсыз'),item.data.fields[0],item.data.fields[1]].filter(Boolean).join(' · '),i)));
+      function selectDraft(index){
+        const chosen=options[index];localStorage.setItem(archiveKey,JSON.stringify(options.filter((_,i)=>i!==index)));
+        for(const key of [draftKey,idKey,idKey+'-secret'])localStorage.removeItem(key);
+        if(chosen){localStorage.setItem(draftKey,JSON.stringify(chosen.data));if(chosen.id)localStorage.setItem(idKey,chosen.id);if(chosen.secret)localStorage.setItem(idKey+'-secret',chosen.secret);}
+        openPlanner(mode,true);
+      }
+      for(const [title,action] of [[ru?'Новый план':'Жаңа жоспар',()=>selectDraft(-1)],[ru?'Продолжить черновик':'Жобаны жалғастыру',()=>selectDraft(Number(select.value))],[ru?'Закрыть':'Жабу',()=>panel.style.display='none']]){
+        const b=document.createElement('button');b.textContent=title;b.onclick=action;panel.querySelector('.pb-actions').append(b);
+      }
+      panel.style.display='flex';panel.querySelector('button').focus();return;
+    }
     const customSubject=old?.fields?.[0]&&!subjects().some(x=>x[0]===old.fields[0]||x[1]===old.fields[0]);
     const customGrade=old?.fields?.[1]&&!grades().some(x=>x[0]===old.fields[1]||x[1]===old.fields[1]);
     const subjectOptions=subjects().map(pair=>`<option value="${esc(pair[0])}">${esc(ru?pair[1]:pair[0])}</option>`).join('');
@@ -298,8 +318,8 @@
       <div class="pb-actions"><button type="button" class="secondary" id="pbPreview">${t.preview}</button><button type="button" class="primary" id="pbDownload" disabled title="${t.downloadAfterSave}">${t.download}</button><button type="button" class="text-btn" id="pbClear">${t.clear}</button><span id="pbStatus" role="status" aria-live="polite"></span></div><div id="pbPreviewBox" class="pb-preview" hidden></div></form></section>`;
     const form=panel.querySelector('#pbForm'),tbody=panel.querySelector('#pbRows'),status=panel.querySelector('#pbStatus'),materialList=panel.querySelector('#pbMaterialsList');
     const saved=old&&Array.isArray(old.fields)?old:{fields:Array(13).fill(''),rows:starterRows(ru),materials:[],documentLanguage:ru?'ru':'kk'};
-    const privacy=document.createElement('p');privacy.className='pb-book-hint';privacy.textContent=ru?'После редактирования черновик сохраняется в этом браузере и на сервере. В общей библиотеке он появится только после подтверждения прав и нажатия «Сохранить в материалах».':'Өңделген жоба осы браузерде және серверде сақталады. Ортақ кітапханаға құқықтарды растап, «Материалдарға сақтау» батырмасын басқанда ғана жариялауға жіберіледі.';form.prepend(privacy);
-    const docLang=panel.querySelector('#pbDocLanguage');docLang.value=saved.documentLanguage|| (ru?'ru':'kk');
+    const privacy=document.createElement('p');privacy.className='pb-book-hint';privacy.textContent=ru?'Автосохранение — в этом браузере и на сервере. Учителя в общей библиотеке черновик не видят. На этом устройстве выберите «Продолжить черновик». Для удаления откройте черновик и нажмите «Очистить черновик». Личный Word можно скачать без публикации.':'Жоба осы браузерде және серверде автоматты сақталады. Ортақ кітапханада ол басқа мұғалімдерге көрінбейді. Осы құрылғыда «Жобаны жалғастыру» арқылы ашыңыз. Жою үшін жобаны ашып, тазалау батырмасын басыңыз. Жеке Word файлын жарияламай жүктей аласыз.';form.prepend(privacy);const switchUi=document.createElement('button');switchUi.type='button';switchUi.className='secondary';switchUi.textContent=ru?'Интерфейс: Русский → Қазақша':'Интерфейс: Қазақша → Русский';switchUi.onclick=()=>document.getElementById('langBtn').click();privacy.after(switchUi);
+    let flushPlan=()=>{};const docLang=panel.querySelector('#pbDocLanguage');docLang.value=saved.documentLanguage|| (ru?'ru':'kk');
     const subjectSelect=panel.querySelector('[data-pb-subject]'),customSubjectInput=panel.querySelector('[data-pb-custom-subject]'),gradeSelect=panel.querySelector('[data-pb-grade]'),customGradeInput=panel.querySelector('[data-pb-custom-grade]');
     function setChoice(select,input,value,pairs){const found=pairs.find(pair=>pair[0]===value||pair[1]===value);if(found){select.value=found[0];input.hidden=true;input.value=''}else if(value){select.value='__other';input.hidden=false;input.value=value}else{select.value='';input.hidden=true;input.value=''}}
     setChoice(subjectSelect,customSubjectInput,saved.fields[0],subjects());setChoice(gradeSelect,customGradeInput,saved.fields[1],grades());
@@ -311,7 +331,7 @@
     function addRow(values=[]){const tr=document.createElement('tr');stageLabels.forEach((label,i)=>{const td=document.createElement('td'),input=i===0?document.createElement('input'):document.createElement('textarea');input.setAttribute('aria-label',label);input.dataset.pbCell=String(i);input.placeholder=i===0?(ru?'Этап · минуты':'Кезең · минут'):label;input.value=values[i]||'';td.append(input);tr.append(td)});const td=document.createElement('td'),remove=document.createElement('button');remove.type='button';remove.className='pb-remove';remove.textContent='×';remove.title=t.removeStage;remove.setAttribute('aria-label',t.removeStage);remove.onclick=()=>{tr.remove();saveDraft()};td.append(remove);tr.append(td);tbody.append(tr)}
      const materials=Array.isArray(saved.materials)?saved.materials:[];
      let draftId='';try{draftId=localStorage.getItem(idKey)||'';if(!/^[a-f0-9-]{36}$/i.test(draftId)){draftId=crypto.randomUUID();localStorage.setItem(idKey,draftId)}}catch{draftId=crypto.randomUUID()}
-     let serverSaveTimer=0,serverSaveQueue=Promise.resolve(),revision=0,publishedRevision=-1;
+     let secret=localStorage.getItem(idKey+'-secret')||crypto.randomUUID();localStorage.setItem(idKey+'-secret',secret);let serverSaveTimer=0,serverSaveQueue=Promise.resolve(),revision=0,publishedRevision=-1;
     const schoolFields = [
       ['school','Организация образования','Білім беру ұйымы'],
       ['unit','Раздел программы','Бағдарлама бөлімі'],
@@ -341,6 +361,8 @@
       codeField.readOnly=true;
       codeField.closest('label').hidden=true;
     }
+    let teacherGoal=old?.teacherGoal||null;
+    const goalContext=()=>JSON.stringify([form.querySelector('#pbBookSelect')?.value,subjectSelect.value,gradeSelect.value,form.querySelector('[data-pb-field="4"]').value.trim(),docLang.value]);
     function syncOfficialGoal(fields){
       if(!textbookMode)return;
       const book=form.querySelector('#pbBookSelect')?.value;
@@ -349,6 +371,10 @@
       codeField.value=fields[5];
       officialField.value=ids.length?ids.map(id=>id.split('|')[1]+' — '+officialCurriculum.goals[id][docLang.value]).join('\n'):
         (outputRu()?'Соответствие параграфа программе №399 ещё не подтверждено.':'Бұл параграфтың №399 бағдарламаға сәйкестігі әлі расталмаған.');
+      if(!ids.length&&teacherGoal?.context===goalContext()){
+        fields[5]=[...new Set(teacherGoal.text.match(/\b\d{1,2}\.\s*\d+\.\s*\d+\.\s*\d+/g)||[])].join(', ');codeField.value=fields[5];
+        officialField.value=(outputRu()?'Выбор учителя по программе №399. Сверьте с параграфом. ':'Мұғалім №399 бағдарламасынан таңдады. Параграфпен салыстырыңыз. ')+teacherGoal.text;
+      }
       if(form.querySelector('#pbOfficialGoal'))form.querySelector('#pbOfficialGoal').textContent=officialField.value;
     }
     function schoolTable(d){
@@ -365,13 +391,15 @@
       const times=d.rows.map(row=>minutes(row[0]));
       const total=times.reduce((a,b)=>a+b,0),duration=minutes(d.fields[3])||Number(d.fields[3]);
       const warnings=[];
+      if(!activityFor(d.textbook?.id,topic,d.documentLanguage)&&!d.textbook?.excerpt&&!/^(кеңістіктегі векторлар|векторы в пространстве)/i.test(topic))
+        warnings.push(r?'Для этой темы в библиотеке нет задания с готовым ответом. В разделе «Изменить план» уточните условие в колонке ученика и внесите ожидаемый ответ в оценивание.':'Бұл тақырыпқа дайын жауабы бар тапсырма табылмады. «Жоспарды өзгерту» бөлімінде оқушы бағанына нақты шартты, бағалау бағанына күтілетін жауапты жазыңыз.');
       if(!ids.length)warnings.push(r?'Черновик. Откройте программу №399 и сверьте цель с темой до проведения урока.':'Жоба. Сабақты өткізер алдында №399 бағдарламасын ашып, мақсатты тақырыппен салыстырыңыз.');
       if(!duration||times.some(n=>!n)||total!==duration)warnings.push(r?'Исправьте время этапов или продолжительность урока.':'Кезеңдердің уақытын немесе сабақ ұзақтығын түзетіңіз.');
       if(d.rows.some(row=>norm(row[1])&&norm(row[1])===norm(row[2])))warnings.push(r?'Уточните роли: инструкции учителя и действия ученика повторяются.':'Рөлдерді нақтылаңыз: мұғалім мен оқушы әрекеттері қайталанады.');
       const profile=goalProfile(goal,r);
       const terms=norm(goal).split(' ').filter(word=>word.length>=5&&!profile?.action.test(word)).map(word=>word.slice(0,5));
       const task=norm(stage[2]);
-      if(!stage[2]||!stage[3]||!d.fields[7]||!profile||!profile.action.test(task)||!terms.some(term=>task.includes(term))||!profile.action.test(d.fields[7]+' '+stage[3]))warnings.push(r?'Сверьте задание и критерий: по записи пока нельзя подтвердить проверяемое действие цели.':'Тапсырма мен өлшемді салыстырыңыз: жазба бойынша мақсаттағы әрекеттің тексерілетіні әзірге расталмады.');
+      if(!stage[2]||!stage[3]||!d.fields[7]||!profile||!profile.action.test(task)||!terms.some(term=>task.includes(term))||!profile.action.test(d.fields[7]+' '+stage[3]))warnings.push(r?'Добавьте конкретное упражнение и ожидаемый ответ в разделе «Изменить план». Сверьте задание и критерий: по записи пока нельзя подтвердить проверяемое действие цели.':'«Жоспарды өзгерту» бөлімінде нақты тапсырма мен күтілетін жауапты енгізіңіз. Тапсырма мен өлшемді салыстырыңыз: жазба бойынша мақсаттағы әрекеттің тексерілетіні әзірге расталмады.');
       return {r,goal,ids,stage,total,duration,profile,warnings};
     }
     function goalProfile(goal,r){
@@ -389,7 +417,7 @@
     function qualityHtml(d){
       const {r,goal,ids,stage,total,duration,profile,warnings}=quality(d);
       const labels=r?['Цель программы','Критерий успеха','Практическое задание','Как проверить результат']:['Бағдарлама мақсаты','Жетістік өлшемі','Практикалық тапсырма','Нәтижені тексеру'];
-      const values=[goal?ids[0].split('|')[1]+' — '+goal:(r?'Требует сверки с программой':'Бағдарламамен салыстыру қажет'),d.fields[7],stage[2],stage[3]];
+      const values=[goal?ids[0].split('|')[1]+' — '+goal:(d.teacherGoal?.text|| (r?'Требует сверки с программой':'Бағдарламамен салыстыру қажет')),d.fields[7],stage[2],stage[3]];
       const item=(label,value)=>'<p><b>'+escape(label)+'</b> '+escape(value||'—')+'</p>';
       return '<section><h2>'+(r?'Проверка плана урока':'Сабақ жоспарын тексеру')+'</h2>'+labels.map((v,i)=>item(v,values[i])).join('')+
         item(r?'Время этапов':'Кезеңдер уақыты',total+' / '+(duration||'—')+' мин')+
@@ -414,9 +442,29 @@
       if(activity)html+='<div style="page-break-before:always"><h2>'+(r?'Материал для учителя':'Мұғалімге арналған материал')+'</h2>'+block(activity[3])+block(d.fields[11])+'</div>';
       return html;
     }
-    function readData(){const fields=Array(13).fill('');const outRu=docLang.value==='ru',subject=subjects().find(pair=>pair[0]===subjectSelect.value),grade=grades().find(pair=>pair[0]===gradeSelect.value);fields[0]=subjectSelect.value==='__other'?customSubjectInput.value.trim():subject?(outRu?subject[1]:subject[0]):'';fields[1]=gradeSelect.value==='__other'?customGradeInput.value.trim():grade?(outRu?grade[1]:grade[0]):'';for(const el of form.querySelectorAll('[data-pb-field]'))fields[Number(el.dataset.pbField)]=el.value.trim();syncOfficialGoal(fields);return {schoolDetails:Object.fromEntries([...schoolDetails.querySelectorAll('[data-school-field]')].map(el=>[el.dataset.schoolField,el.value.trim()])),textbook:textbookMode?{method:form.querySelector('#pbMethod')?.value||'subject',id:form.querySelector('#pbBookSelect')?.value||'',schoolLanguage:form.querySelector('#pbSchoolLanguage')?.value||docLang.value,title:form.querySelector('#pbBookTitle')?.value.trim()||'',pages:form.querySelector('#pbBookPages')?.value.trim()||'',excerpt:form.querySelector('#pbBookText')?.value.trim()||''}:null,fields,rows:[...tbody.rows].map(row=>[...row.querySelectorAll('[data-pb-cell]')].map(x=>x.value.trim())),materials:materials.slice(),documentLanguage:docLang.value,author:panel.querySelector('#pbAuthor').value.trim()}}
-      function scheduleServerSave(forcePublish=false){const currentRevision=++revision,data=readData();downloadButton.disabled=true;downloadButton.title=t.downloadAfterSave;publishButton.textContent=t.serverSaving;status.textContent=t.serverSaving;clearTimeout(serverSaveTimer);serverSaveTimer=setTimeout(()=>{serverSaveQueue=serverSaveQueue.then(async()=>{if(currentRevision<revision)return;const response=await fetch('/api/planner/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:draftId,...data})}),result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||'HTTP '+response.status);if(currentRevision!==revision)return;if(!forcePublish||!valid(true)||!data.author||!panel.querySelector('#pbRights').checked){publishedRevision=-1;publishButton.textContent=t.savePlan;status.textContent=t.serverDraftSaved;return}const {d,html}=buildDocument(),payload={id:draftId,html,title:((outputRu()?'КСП: ':'ҚМЖ: ')+d.fields[4]).slice(0,140),description:[(outputRu()?"Тема: ":"Тақырып: ")+d.fields[4],(outputRu()?"Учебник: ":"Оқулық: ")+(d.textbook?.title||(outputRu()?"не указан":"көрсетілмеген")),quality(d).ids.length?(outputRu()?"Цель сопоставлена с №399":"Мақсат №399 бағдарламасымен сәйкестендірілген"):(outputRu()?"Черновик · сверьте цель с программой":"Жоба · мақсатты бағдарламамен салыстырыңыз")].join(" · ").slice(0,1150),subject:d.fields[0],grade:d.fields[1],author:data.author,language:outputRu()?'ru':'kk',rights_confirmed:true},commitResponse=await fetch('/api/planner/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),commitResult=await commitResponse.json();if(!commitResponse.ok||!commitResult.ok)throw new Error(commitResult.error||'HTTP '+commitResponse.status);if(currentRevision!==revision)return;publishedRevision=currentRevision;if(typeof window.loadPublished==='function')window.loadPublished();downloadButton.disabled=false;downloadButton.title='';publishButton.textContent=commitResult.status==='published'?t.publishedSaved:t.pendingSaved;status.textContent=commitResult.status==='published'?t.publishedSaved:t.pendingSaved;if(commitResult.status==='published'&&commitResult.review_url){const link=document.createElement('a');link.href=commitResult.review_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=t.openSaved;status.append(document.createTextNode(' '),link)}}).catch(error=>{if(currentRevision===revision){publishedRevision=-1;downloadButton.disabled=true;publishButton.textContent=t.savePlan;status.textContent=location.protocol==='file:'?t.serverRequired:(error.message||t.serverSaveFailed)}})},forcePublish?0:900)}
-     let edited=false;for(const evt of ['input','change','click'])form.addEventListener(evt,e=>{if(evt!=='click'||e.target.closest('button'))edited=true;},true);function saveDraft(){if(textbookMode&&valid(true))renderPreview();else panel.querySelector('#pbPreviewBox').hidden=true;if(!edited)return;try{localStorage.setItem(draftKey,JSON.stringify(readData()))}catch(error){if(status)status.textContent=ru?'Не удалось сохранить черновик в этом браузере.':'Нобайды осы браузерде сақтау мүмкін болмады.'}scheduleServerSave()}
+    function readFormData(){const fields=Array(13).fill('');const outRu=docLang.value==='ru',subject=subjects().find(pair=>pair[0]===subjectSelect.value),grade=grades().find(pair=>pair[0]===gradeSelect.value);fields[0]=subjectSelect.value==='__other'?customSubjectInput.value.trim():subject?(outRu?subject[1]:subject[0]):'';fields[1]=gradeSelect.value==='__other'?customGradeInput.value.trim():grade?(outRu?grade[1]:grade[0]):'';for(const el of form.querySelectorAll('[data-pb-field]'))fields[Number(el.dataset.pbField)]=el.value.trim();syncOfficialGoal(fields);return {schoolDetails:Object.fromEntries([...schoolDetails.querySelectorAll('[data-school-field]')].map(el=>[el.dataset.schoolField,el.value.trim()])),textbook:textbookMode?{method:form.querySelector('#pbMethod')?.value||'subject',id:form.querySelector('#pbBookSelect')?.value||'',schoolLanguage:form.querySelector('#pbSchoolLanguage')?.value||docLang.value,title:form.querySelector('#pbBookTitle')?.value.trim()||'',pages:form.querySelector('#pbBookPages')?.value.trim()||'',excerpt:form.querySelector('#pbBookText')?.value.trim()||''}:null,fields,rows:[...tbody.rows].map(row=>[...row.querySelectorAll('[data-pb-cell]')].map(x=>x.value.trim())),materials:materials.slice(),documentLanguage:docLang.value,author:panel.querySelector('#pbAuthor').value.trim()}}
+    function readData(){
+      const d=readFormData(), select=form.querySelector('#pbTopicSelect'), book=d.textbook;
+      if(!book||!select||select.value==='')return d;
+      const sources=TEXTBOOK_CONTENTS[book.id]||[];const entry=sources.flatMap(src=>src.rows.map(row=>({row,part:src.part,url:src.url})))[Number(select.value)];
+      if(!entry)return d;if(entry.row[1]!==d.fields[4]){d.fields[4]=entry.row[1];syncOfficialGoal(d.fields);}
+      const [number,,page]=entry.row;
+      book.pages=[entry.part?(outputRu()?'Часть ':'Бөлім ')+entry.part:'',number?'§ '+number:'',page?(outputRu()?'стр. ':'бет ')+page:''].filter(Boolean).join(' / ');
+      const ref=book.title+' · '+book.pages;
+      for(const row of d.rows)if(/§|(?:стр\.|бет)\s*\d/i.test(row[4]))row[4]=ref;
+            d.materials=d.materials.flatMap(item=>{
+        if(item.kind===6&&/^(Электронный учебник|Оглавление учебника|Оқулық мазмұны|Электрондық оқулық) · /.test(item.title)){
+          if(!item.title.endsWith(' · '+d.fields[4]))return [];
+          return [{...item,url:entry.url,note:book.pages}];
+        }
+        return [item];
+      });
+      d.editionRevision=2;
+      d.teacherGoal=teacherGoal?.context===goalContext()?teacherGoal:null;
+      return d;
+    }
+      function scheduleServerSave(forcePublish=false){const currentRevision=++revision,data=readData();downloadButton.disabled=true;downloadButton.title=t.downloadAfterSave;publishButton.textContent=t.serverSaving;status.textContent=t.serverSaving;clearTimeout(serverSaveTimer);serverSaveTimer=setTimeout(()=>{serverSaveQueue=serverSaveQueue.then(async()=>{if(currentRevision<revision)return;const response=await fetch('/api/planner/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:draftId,secret,...data})}),result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||'HTTP '+response.status);if(currentRevision!==revision)return;if(!forcePublish||!valid(true)||!data.author||!panel.querySelector('#pbRights').checked){publishedRevision=-1;publishButton.textContent=t.savePlan;status.textContent=t.serverDraftSaved;return}const {d,html}=buildDocument(),payload={id:draftId,html,title:((outputRu()?'КСП: ':'ҚМЖ: ')+d.fields[4]).slice(0,140),description:[(outputRu()?"Тема: ":"Тақырып: ")+d.fields[4],(outputRu()?"Учебник: ":"Оқулық: ")+(d.textbook?.title||(outputRu()?"не указан":"көрсетілмеген")),quality(d).ids.length?(outputRu()?"Цель сопоставлена с №399":"Мақсат №399 бағдарламасымен сәйкестендірілген"):(outputRu()?"Черновик · сверьте цель с программой":"Жоба · мақсатты бағдарламамен салыстырыңыз")].join(" · ").slice(0,1150),subject:d.fields[0],grade:d.fields[1],author:data.author,language:outputRu()?'ru':'kk',rights_confirmed:true},commitResponse=await fetch('/api/planner/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),commitResult=await commitResponse.json();if(!commitResponse.ok||!commitResult.ok)throw new Error(commitResult.error||'HTTP '+commitResponse.status);if(currentRevision!==revision)return;publishedRevision=currentRevision;if(typeof window.loadPublished==='function')window.loadPublished();downloadButton.disabled=false;downloadButton.title='';publishButton.textContent=commitResult.status==='published'?t.publishedSaved:t.pendingSaved;status.textContent=commitResult.status==='published'?t.publishedSaved:t.pendingSaved;if(commitResult.status==='published'&&commitResult.review_url){const link=document.createElement('a');link.href=commitResult.review_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=t.openSaved;status.append(document.createTextNode(' '),link)}}).catch(error=>{if(currentRevision===revision){publishedRevision=-1;downloadButton.disabled=true;publishButton.textContent=t.savePlan;status.textContent=location.protocol==='file:'?t.serverRequired:(error.message||t.serverSaveFailed)}})},forcePublish?0:900)}
+     let edited=false;for(const evt of ['input','change','click'])form.addEventListener(evt,e=>{if(evt!=='click'||e.target.closest('#pbAddMaterial,#pbAddRow'))edited=true;},true);function saveDraft(){if(textbookMode&&valid(true))renderPreview();else panel.querySelector('#pbPreviewBox').hidden=true;if(!edited)return;try{localStorage.setItem(draftKey,JSON.stringify(readData()))}catch(error){if(status)status.textContent=ru?'Не удалось сохранить черновик в этом браузере.':'Нобайды осы браузерде сақтау мүмкін болмады.'}scheduleServerSave()}
     function outputRu(){return docLang.value==='ru'}
     function outputLabels(){const outRu=outputRu();return outRu?{
       fields:['Предмет','Класс','Дата','Продолжительность','Тема урока','Код цели обучения','Цель урока','Ожидаемый результат и критерии успеха','Ценности / межпредметная связь','Дифференциация и индивидуальная поддержка','Безопасность и инклюзия','Домашнее задание','Рефлексия учителя / следующий шаг'],cols:['Этап и время','Действия учителя','Действия ученика','Оценивание / обратная связь','Ресурсы'],materials:'Материалы по теме',title:'Краткосрочный план урока',subject:materials.length?'Материалы':'Материалы',note:'Рабочий шаблон. Проверьте соответствие утверждённой учебной программе и требованиям школы.'
@@ -439,9 +487,13 @@
     panel.querySelector('#pbAddMaterial').onclick=()=>{const kind=Number(panel.querySelector('#pbMaterialKind').value),title=panel.querySelector('#pbMaterialTitle').value.trim(),rawUrl=panel.querySelector('#pbMaterialUrl').value.trim(),url=safeUrl(rawUrl),note=panel.querySelector('#pbMaterialNote').value.trim();if(!title||!url){status.textContent=t.badUrl;panel.querySelector('#pbMaterialUrl').focus();return}materials.push({kind,title,url,note});panel.querySelector('#pbMaterialTitle').value='';panel.querySelector('#pbMaterialUrl').value='';panel.querySelector('#pbMaterialNote').value='';renderMaterials();saveDraft()};
     panel.querySelector('#pbPreview').onclick=renderPreview;
      const downloadButton=panel.querySelector('#pbDownload'),publishButton=panel.querySelector('#pbPublish');
-      downloadButton.onclick=()=>{if(downloadButton.disabled||publishedRevision!==revision){status.textContent=t.downloadAfterSave;return}if(!valid())return;const {d,html}=buildDocument(),blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(outputRu()?'Краткосрочный план — ':'Қысқа мерзімді жоспар — ')+(d.fields[4]||'план').replace(/[\\/:*?"<>|]/g,'_')+'.doc';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status.textContent=ru?'План и прикреплённые материалы подготовлены для Word':'Жоспар мен тіркелген материалдар Word құжатына дайын'};
+      const personal=document.createElement('button');personal.type='button';personal.id='pbPrivateWord';personal.className='primary';personal.textContent=ru?'Скачать личный черновик Word':'Жеке жобаны Word форматында жүктеу';downloadButton.before(personal);downloadButton.hidden=true;downloadButton.style.display='none';
+      personal.onclick=()=>{if(!form.querySelector('[data-pb-field="4"]').value.trim()){status.textContent=ru?'Введите тему личного плана.':'Жеке жоспардың тақырыбын енгізіңіз.';return;}flushPlan();const {d,html}=buildDocument(),blob=new Blob(['\ufeff',html],{type:'application/msword;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(outputRu()?'Краткосрочный план — ':'Қысқа мерзімді жоспар — ')+(d.fields[4]||'план').replace(/[\\/:*?"<>|]/g,'_')+'.doc';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);status.textContent=ru?'План и прикреплённые материалы подготовлены для Word':'Жоспар мен тіркелген материалдар Word құжатына дайын'};
       publishButton.onclick=()=>{if(!valid())return;const author=panel.querySelector('#pbAuthor').value.trim(),rights=panel.querySelector('#pbRights');if(!author){status.textContent=ru?'Укажите имя или псевдоним автора.':'Автордың атын немесе лақап атын енгізіңіз.';panel.querySelector('#pbAuthor').focus();return}if(!rights.checked){status.textContent=ru?'Подтвердите право на публикацию плана.':'Жоспарды жариялауға құқығыңызды растаңыз.';rights.focus();return}scheduleServerSave(true)};
-     panel.querySelector('#pbClear').onclick=()=>{if(!confirm(ru?'Очистить сохранённый черновик?':'Сақталған нобайды тазартасыз ба?'))return;localStorage.removeItem(draftKey);localStorage.removeItem(idKey);draftId=crypto.randomUUID();revision++;publishedRevision=-1;downloadButton.disabled=true;form.reset();docLang.value=ru?'ru':'kk';localizeChoices();subjectSelect.value='';gradeSelect.value='';customSubjectInput.value='';customSubjectInput.hidden=true;customGradeInput.value='';customGradeInput.hidden=true;tbody.innerHTML='';materials.splice(0,materials.length);starterRows(ru).forEach(addRow);renderMaterials();panel.querySelector('#pbPreviewBox').hidden=true;status.textContent=t.cleared};
+     panel.querySelector('#pbClear').onclick=async()=>{if(!confirm(ru?'Очистить сохранённый черновик?':'Сақталған нобайды тазартасыз ба?'))return;clearTimeout(serverSaveTimer);revision++;await serverSaveQueue;
+      try{const response=await fetch('/api/planner/draft',{method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({secret})});if(!response.ok)throw Error();}
+      catch{status.textContent=ru?'Сервер недоступен. Черновик сохранён. Повторите удаление позже.':'Сервер қолжетімсіз. Жоба сақталды. Кейін қайта жойыңыз.';return;}
+      localStorage.removeItem(idKey+'-secret');secret=crypto.randomUUID();localStorage.setItem(idKey+'-secret',secret);edited=false;localStorage.removeItem(draftKey);localStorage.removeItem(idKey);draftId=crypto.randomUUID();revision++;publishedRevision=-1;downloadButton.disabled=true;form.reset();docLang.value=ru?'ru':'kk';localizeChoices();subjectSelect.value='';gradeSelect.value='';customSubjectInput.value='';customSubjectInput.hidden=true;customGradeInput.value='';customGradeInput.hidden=true;tbody.innerHTML='';materials.splice(0,materials.length);starterRows(ru).forEach(addRow);renderMaterials();panel.querySelector('#pbPreviewBox').hidden=true;status.textContent=t.cleared};
 
     if(quick){
 
@@ -523,7 +575,28 @@
         const officialInfo=document.createElement('div');
         const officialLink=document.createElement('a');officialLink.href='https://old.adilet.zan.kz/'+(ru?'rus':'kaz')+'/docs/V2200029767';officialLink.target='_blank';officialLink.rel='noopener';officialLink.textContent=ru?'Цели по программе №399':'№399 бағдарлама бойынша оқу мақсаттары';
         const officialText=document.createElement('p');officialText.id='pbOfficialGoal';officialText.style.whiteSpace='pre-line';
-        officialInfo.append(officialLink,officialText);content.append(officialInfo);
+        const chooseGoal=document.createElement('button'),goalOptions=document.createElement('select'),goalNote=document.createElement('p');
+        chooseGoal.type='button';chooseGoal.className='secondary';chooseGoal.textContent=ru?'Выбрать цель из программы своего класса':'Сынып бағдарламасынан мақсат таңдау';
+        goalOptions.hidden=true;goalOptions.style.maxWidth='100%';goalOptions.setAttribute('aria-label',chooseGoal.textContent);
+        let optionsContext='';
+        chooseGoal.onclick=async()=>{
+          const context=goalContext(),lang=docLang.value,grade=Number(gradeSelect.value.match(/\d+/)?.[0]),pair=subjects().find(x=>x[0]===subjectSelect.value);
+          if(!topicField.value.trim()){goalNote.textContent=ru?'Сначала выберите тему.':'Алдымен тақырыпты таңдаңыз.';return;}
+          try{
+            const response=await fetch('./ktp-data.json');if(!response.ok)throw Error();
+            const programs=(await response.json())[lang];if(context!==goalContext())return;
+            optionsContext=context;goalOptions.replaceChildren(new Option(ru?'Выберите формулировку и проверьте профиль программы':'Тұжырымды таңдап, бағдарламаның бағытын тексеріңіз',''));
+            for(const p of programs.filter(p=>p.grade===grade&&p.subject===pair?.[lang==='ru'?1:0])){
+              const group=document.createElement('optgroup');group.label=p.name;
+              for(const text of new Set(p.rows.map(row=>row[3])))group.append(new Option(text,text));goalOptions.append(group);
+            }
+            goalOptions.hidden=goalOptions.options.length<2;
+            goalNote.textContent=goalOptions.hidden?(ru?'Для этого класса и предмета формулировки ещё не подключены. Откройте программу выше и укажите рабочую цель в разделе редактирования.':'Бұл сынып пен пәнге мақсаттар әлі қосылмаған. Жоғарыдағы бағдарламаны ашып, өңдеу бөлімінде сабақ мақсатын көрсетіңіз.'):'';
+          }catch{goalNote.textContent=ru?'Не удалось загрузить цели. Откройте программу по ссылке выше.':'Мақсаттар жүктелмеді. Жоғарыдағы бағдарлама сілтемесін ашыңыз.';}
+        };
+        goalOptions.onchange=()=>{if(optionsContext!==goalContext()){goalOptions.hidden=true;return;}teacherGoal={context:optionsContext,text:goalOptions.value};saveDraft();};
+        form.addEventListener('change',()=>{const confirmed=officialCurriculum.matched[picker.value]?.[topicField.value];chooseGoal.hidden=Boolean(confirmed?.length);if(optionsContext!==goalContext()||chooseGoal.hidden){goalOptions.hidden=true;goalNote.textContent='';}});
+        officialInfo.append(officialLink,officialText,chooseGoal,goalOptions,goalNote);content.append(officialInfo);
         const resultHeading=document.createElement('h3');resultHeading.textContent=ru?'Ваш план урока':'Сабақ жоспарыңыз';result.append(resultHeading);
         const autoStatus=document.createElement('p');autoStatus.id='pbAutoStatus';autoStatus.className='pb-book-hint';autoStatus.setAttribute('aria-live','polite');result.append(autoStatus);
         const customize=document.createElement('details');customize.id='pbEditPlan';customize.className='pb-book-step';
@@ -566,7 +639,7 @@
         resources.addEventListener('toggle',()=>{if(resources.open)showTopicMaterials();});
         form.addEventListener('change',()=>{if(resources.open)showTopicMaterials();});
         const publish=form.querySelector('.pb-publish');publish.querySelector('h3').textContent=ru?'Сохраните готовый план':'Дайын жоспарды сақтаңыз';
-        publish.querySelector('p').textContent=ru?'Укажите автора и подтвердите публикацию. После сохранения в материалах станет доступно скачивание Word.':'Авторды көрсетіп, жариялауды растаңыз. Материалдарға сақтағаннан кейін Word файлын жүктеуге болады.';
+        publish.querySelector('p').textContent=ru?'Укажите автора и подтвердите публикацию. Личный Word можно скачать сразу. Материал для общей библиотеки проходит отдельную проверку.':'Авторды көрсетіп, жариялауды растаңыз. Жеке Word файлын бірден жүктей аласыз. Ортақ кітапханаға жіберілген материал бөлек тексеріледі.';
         result.append(schoolDetails,publish,form.querySelector('.pb-actions'));autoStatus.after(form.querySelector('#pbPreviewBox'));
         form.querySelector('#pbPreview').hidden=true;downloadButton.textContent=ru?'Скачать Word':'Word жүктеу';
         let selectedTopicIndex=-1,activeTopics=[],available=[];
@@ -614,9 +687,9 @@
         [subjectSelect,school].forEach(el=>el.addEventListener('change',()=>{refreshBooks(true);saveDraft();}));
         [customSubjectInput,customGradeInput].forEach(el=>el.addEventListener('input',()=>{refreshBooks(true);saveDraft();}));
         topicSearch.addEventListener('input',fillTopicChoices);
-        topicChoice.addEventListener('change',()=>{selectedTopicIndex=topicChoice.value===''?-1:Number(topicChoice.value);const row=activeTopics[selectedTopicIndex];if(!row)return;form.querySelector('#pbBookPages').readOnly=true;if(topicField.value!==row[1])form.querySelector('#pbBookText').value='';topicField.value=row[1];form.querySelector('#pbBookPages').value=[row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]:'',row[0]?'§ '+row[0]:'',row[2]?(outputRu()?'стр. ':'бет ')+row[2]:''].filter(Boolean).join(' / ');topicField.dispatchEvent(new Event('input',{bubbles:true}));});
+        topicChoice.addEventListener('change',()=>{selectedTopicIndex=topicChoice.value===''?-1:Number(topicChoice.value);const row=activeTopics[selectedTopicIndex];if(!row)return;form.querySelector('#pbBookPages').readOnly=true;if(topicField.value!==row[1])form.querySelector('#pbBookText').value='';topicField.value=row[1];form.querySelector('#pbBookPages').value=[row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]:'',row[0]?'§ '+row[0]:'',row[2]?(outputRu()?'стр. ':'бет ')+row[2]:''].filter(Boolean).join(' / ');topicField.dispatchEvent(new Event('input',{bubbles:true}));flushPlan();});
         topicField.addEventListener('input',()=>{if(activeTopics[selectedTopicIndex]?.[1]!==topicField.value){selectedTopicIndex=-1;topicChoice.value='';form.querySelector('#pbBookPages').readOnly=false;form.querySelector('#pbBookPages').value='';}if(!topicField.value.trim()){result.hidden=true;form.querySelector('#pbPreviewBox').hidden=true;}});
-        const oldClear=panel.querySelector('#pbClear').onclick;panel.querySelector('#pbClear').onclick=()=>{oldClear();if(!gradeSelect.value){refreshBooks(true);gradeSelect.focus();}};
+        const oldClear=panel.querySelector('#pbClear').onclick;panel.querySelector('#pbClear').onclick=async()=>{await oldClear();if(!gradeSelect.value){refreshBooks(true);gradeSelect.focus();}};
         const languageHint=document.createElement('div'),useSchool=document.createElement('button');
         languageHint.className='pb-book-hint';useSchool.type='button';useSchool.className='secondary';
         useSchool.onclick=()=>{docLang.value=school.value;docLang.dispatchEvent(new Event('change',{bubbles:true}));};
@@ -649,7 +722,7 @@
         const reflectionKey=()=>JSON.stringify(['ustaz-reflection',gradeSelect.value,subjectSelect.value,picker.value,topicField.value,docLang.value]);
         function showReflection(){const suggestions=ru?['','Дайте новый пример для самостоятельного переноса по теме','Повторите задание, постепенно убирая подсказки по теме','Разберите одну типичную ошибку и повторите выходной билет по теме']:['','Өздігінен қолдануға жаңа мысал беріңіз','Көмекті біртіндеп азайтып, тапсырманы қайталатыңыз','Бір типтік қатені талдап, шығу билетін қайта орындатыңыз'];advice.textContent=Number(outcome.value)?suggestions[Number(outcome.value)]+' · '+topicField.value:'';}
         outcome.onchange=e=>{e.stopPropagation();try{localStorage.setItem(reflectionKey(),outcome.value);}catch{}showReflection();};
-        updateTextbookFlow=()=>{result.hidden=!valid(true);const unverified=!readData().fields[5];const heading=publish.querySelector("h3");heading.textContent=unverified?(ru?"Сохраните черновик плана":"Жоспар жобасын сақтаңыз"):(ru?"Сохраните план":"Жоспарды сақтаңыз");try{outcome.value=localStorage.getItem(reflectionKey())||'0';}catch{}showReflection();if(resources.open)showTopicMaterials();};
+        updateTextbookFlow=()=>{result.hidden=!valid(true);const unverified=!officialCurriculum.matched[picker.value]?.[topicField.value]?.length;const heading=publish.querySelector("h3");heading.textContent=unverified?(ru?"Сохраните черновик плана":"Жоспар жобасын сақтаңыз"):(ru?"Сохраните план":"Жоспарды сақтаңыз");try{outcome.value=localStorage.getItem(reflectionKey())||'0';}catch{}showReflection();if(resources.open)showTopicMaterials();};
         refreshBooks();
       }
 
@@ -659,7 +732,10 @@
       const regenerate=()=>{const d=readData();if(!d.fields[0]||!d.fields[1]||!d.fields[4])return;
 
         if(textbookMode&&!d.textbook.title)return;
-        const selectionChanged=generatedSelection!==selectionKey(d),preserveRestored=initialGeneration&&Boolean(old?.fields?.[4])&&!selectionChanged;
+        const legacyRepair=initialGeneration&&old&&!old.editionRevision&&d.textbook?.id&&
+          (old.textbook?.pages!==d.textbook.pages||(/^(кеңістіктегі векторлар|векторы в пространстве)$/i.test(d.fields[4])&&!old.rows?.some(row=>row.join(' ').includes('AB + BA'))));
+        if(legacyRepair){const list=archives();if(!list.some(x=>x.legacyId===draftId)){list.push({data:old,legacyId:draftId});localStorage.setItem(archiveKey,JSON.stringify(list));}}
+        const selectionChanged=legacyRepair||generatedSelection!==selectionKey(d),preserveRestored=initialGeneration&&Boolean(old?.fields?.[4])&&!selectionChanged;
         initialGeneration=false;generatedSelection=selectionKey(d);
         if(selectionChanged&&previous)form.querySelector('[data-pb-field="5"]').value='';
         const next=quickPlanDraft(d.fields[0],d.fields[1],d.fields[4],outputRu());
@@ -728,17 +804,24 @@
           const ref=[d.textbook.title,d.textbook.pages].join(' · ');
           for(const row of tbody.rows){const cell=row.querySelectorAll('[data-pb-cell]')[4];if(cell&&cell.value.includes('§')&&(cell.value.includes(d.textbook.title)||old?.textbook?.title&&cell.value.includes(old.textbook.title)))cell.value=ref;}
         }
-        previous=next;saveDraft();if(textbookMode){renderPreview();updateTextbookFlow();}const autoStatus=form.querySelector('#pbAutoStatus');if(autoStatus&&!confirmed?.length){autoStatus.style.cssText='border-left:4px solid #a86500;background:#fff4db;padding:12px;font-weight:bold';autoStatus.textContent=ru?'Черновик урока. Соответствие цели программе требует проверки.':'Сабақ жобасы. Мақсаттың бағдарламаға сәйкестігін тексеру қажет.';}else if(autoStatus){autoStatus.style.cssText='';autoStatus.textContent=ru?'План составлен автоматически. Проверьте задания по учебнику. При необходимости откройте «Изменить план»; затем сохраните и скачайте Word.':'Жоспар автоматты құрылды. Тапсырмаларды оқулықпен тексеріңіз. Қажет болса «Жоспарды өзгерту» бөлімін ашып, сақтаңыз және Word жүктеңіз.';}
+        previous=next;saveDraft();if(textbookMode){renderPreview();updateTextbookFlow();}const autoStatus=form.querySelector('#pbAutoStatus');if(autoStatus&&!confirmed?.length){autoStatus.style.cssText='border-left:4px solid #a86500;background:#fff4db;padding:12px;font-weight:bold';autoStatus.textContent=ru?'Черновик урока. Соответствие цели программе требует проверки.':'Сабақ жобасы. Мақсаттың бағдарламаға сәйкестігін тексеру қажет.';}else if(autoStatus){autoStatus.style.cssText='';autoStatus.textContent=ru?'План составлен автоматически. Проверьте задания по учебнику. При необходимости откройте «Изменить план»; затем скачайте личный Word или отправьте материал на проверку.':'Жоспар автоматты құрылды. Тапсырмаларды оқулықпен тексеріңіз. Қажет болса «Жоспарды өзгерту» бөлімін ашып, сақтаңыз және Word жүктеңіз.';}
       };
-      const queue=()=>{clearTimeout(timer);timer=setTimeout(regenerate,450);};
+      flushPlan=()=>{clearTimeout(timer);regenerate();};const queue=()=>{clearTimeout(timer);timer=setTimeout(regenerate,450);};
       [subjectSelect,gradeSelect,customSubjectInput,customGradeInput,form.querySelector('[data-pb-field="4"]'),docLang].forEach(el=>{el.addEventListener('input',queue);el.addEventListener('change',queue);});
       const note=panel.querySelector('.pb-language>span');if(note)note.textContent=ru?'Текст создаётся на языке готового плана. Язык обучения в классе фильтрует учебники. Введённый вами текст автоматически не переводится.':'Жоспар мәтіні «Дайын жоспар тілі» бойынша құрылады. Сыныптың оқыту тілі тек оқулықтар тізімін сүзеді. Өз мәтініңіз автоматты аударылмайды.';
       if(textbookMode)['pbMethod','pbBookSelect','pbBookTitle','pbBookPages','pbBookText'].forEach(id=>{const input=form.querySelector('#'+id);input.addEventListener('input',queue);input.addEventListener('change',queue);});
       regenerate();
     }
-    renderTopicIdeas();if(textbookMode)panel.querySelector('#pbTopicIdeas').parentElement.hidden=true;makeCatalogSuggestions();panel.style.display='flex';
+    renderTopicIdeas();if(textbookMode)panel.querySelector('#pbTopicIdeas').parentElement.hidden=true;makeCatalogSuggestions();panel.style.display='flex';docLang.focus();
   }
-  document.getElementById('langBtn')?.addEventListener('click',()=>{if(panel?.style.display==='flex')openPlanner(panel.dataset.mode||'textbook');});window.openPlanner=openPlanner;window.closePlanner=()=>{if(panel)panel.style.display='none'};
+  document.getElementById('langBtn')?.addEventListener('click',()=>{if(panel?.style.display==='flex')openPlanner(panel.dataset.mode||'textbook',Boolean(panel.querySelector('#pbForm')));});panel?.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){e.preventDefault();panel.style.display='none';document.getElementById('quickPlannerOpenBtn')?.focus();return;}
+  if(e.key!=='Tab')return;
+  const controls=[...panel.querySelectorAll('button,select,input,textarea,summary,a[href]')].filter(el=>!el.disabled&&el.getClientRects().length);
+  if(!controls.length)return;
+  if(e.shiftKey&&document.activeElement===controls[0]){e.preventDefault();controls.at(-1).focus();}
+  else if(!e.shiftKey&&document.activeElement===controls.at(-1)){e.preventDefault();controls[0].focus();}
+});window.openPlanner=openPlanner;window.closePlanner=()=>{if(panel)panel.style.display='none'};
 
   const detailedButton=document.getElementById('plannerOpenBtn');
   if(detailedButton){
