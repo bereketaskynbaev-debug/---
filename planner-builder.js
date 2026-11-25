@@ -353,7 +353,7 @@
       if(activity)html+='<div style="page-break-before:always"><h2>'+(r?'Материал для учителя':'Мұғалімге арналған материал')+'</h2>'+block(activity[3])+block(d.fields[11])+'</div>';
       return html;
     }
-    function readData(){const fields=Array(13).fill('');const outRu=docLang.value==='ru',subject=subjects().find(pair=>pair[0]===subjectSelect.value),grade=grades().find(pair=>pair[0]===gradeSelect.value);fields[0]=subjectSelect.value==='__other'?customSubjectInput.value.trim():subject?(outRu?subject[1]:subject[0]):'';fields[1]=gradeSelect.value==='__other'?customGradeInput.value.trim():grade?(outRu?grade[1]:grade[0]):'';for(const el of form.querySelectorAll('[data-pb-field]'))fields[Number(el.dataset.pbField)]=el.value.trim();syncOfficialGoal(fields);return {schoolDetails:Object.fromEntries([...schoolDetails.querySelectorAll('[data-school-field]')].map(el=>[el.dataset.schoolField,el.value.trim()])),textbook:textbookMode?{id:form.querySelector('#pbBookSelect')?.value||'',schoolLanguage:form.querySelector('#pbSchoolLanguage')?.value||docLang.value,title:form.querySelector('#pbBookTitle')?.value.trim()||'',pages:form.querySelector('#pbBookPages')?.value.trim()||'',excerpt:form.querySelector('#pbBookText')?.value.trim()||''}:null,fields,rows:[...tbody.rows].map(row=>[...row.querySelectorAll('[data-pb-cell]')].map(x=>x.value.trim())),materials:materials.slice(),documentLanguage:docLang.value,author:panel.querySelector('#pbAuthor').value.trim()}}
+    function readData(){const fields=Array(13).fill('');const outRu=docLang.value==='ru',subject=subjects().find(pair=>pair[0]===subjectSelect.value),grade=grades().find(pair=>pair[0]===gradeSelect.value);fields[0]=subjectSelect.value==='__other'?customSubjectInput.value.trim():subject?(outRu?subject[1]:subject[0]):'';fields[1]=gradeSelect.value==='__other'?customGradeInput.value.trim():grade?(outRu?grade[1]:grade[0]):'';for(const el of form.querySelectorAll('[data-pb-field]'))fields[Number(el.dataset.pbField)]=el.value.trim();syncOfficialGoal(fields);return {schoolDetails:Object.fromEntries([...schoolDetails.querySelectorAll('[data-school-field]')].map(el=>[el.dataset.schoolField,el.value.trim()])),textbook:textbookMode?{method:form.querySelector('#pbMethod')?.value||'subject',id:form.querySelector('#pbBookSelect')?.value||'',schoolLanguage:form.querySelector('#pbSchoolLanguage')?.value||docLang.value,title:form.querySelector('#pbBookTitle')?.value.trim()||'',pages:form.querySelector('#pbBookPages')?.value.trim()||'',excerpt:form.querySelector('#pbBookText')?.value.trim()||''}:null,fields,rows:[...tbody.rows].map(row=>[...row.querySelectorAll('[data-pb-cell]')].map(x=>x.value.trim())),materials:materials.slice(),documentLanguage:docLang.value,author:panel.querySelector('#pbAuthor').value.trim()}}
       function scheduleServerSave(forcePublish=false){const currentRevision=++revision,data=readData();downloadButton.disabled=true;downloadButton.title=t.downloadAfterSave;publishButton.textContent=t.serverSaving;status.textContent=t.serverSaving;clearTimeout(serverSaveTimer);serverSaveTimer=setTimeout(()=>{serverSaveQueue=serverSaveQueue.then(async()=>{if(currentRevision<revision)return;const response=await fetch('/api/planner/draft',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:draftId,...data})}),result=await response.json();if(!response.ok||!result.ok)throw new Error(result.error||'HTTP '+response.status);if(currentRevision!==revision)return;if(!valid(true)||!data.author||!panel.querySelector('#pbRights').checked){publishedRevision=-1;publishButton.textContent=t.savePlan;status.textContent=t.serverDraftSaved;return}const {d,html}=buildDocument(),payload={id:draftId,html,title:((outputRu()?'КСП: ':'ҚМЖ: ')+d.fields[4]).slice(0,140),description:`${d.fields[0]} · ${d.fields[1]}. ${d.fields[6]}`.slice(0,1150),subject:d.fields[0],grade:d.fields[1],author:data.author,language:outputRu()?'ru':'kk',rights_confirmed:true},commitResponse=await fetch('/api/planner/commit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}),commitResult=await commitResponse.json();if(!commitResponse.ok||!commitResult.ok)throw new Error(commitResult.error||'HTTP '+commitResponse.status);if(currentRevision!==revision)return;publishedRevision=currentRevision;if(typeof window.loadPublished==='function')window.loadPublished();downloadButton.disabled=false;downloadButton.title='';publishButton.textContent=commitResult.status==='published'?t.publishedSaved:t.pendingSaved;status.textContent=commitResult.status==='published'?t.publishedSaved:t.pendingSaved;if(commitResult.status==='published'&&commitResult.review_url){const link=document.createElement('a');link.href=commitResult.review_url;link.target='_blank';link.rel='noopener noreferrer';link.textContent=t.openSaved;status.append(document.createTextNode(' '),link)}}).catch(error=>{if(currentRevision===revision){publishedRevision=-1;downloadButton.disabled=true;publishButton.textContent=t.savePlan;status.textContent=location.protocol==='file:'?t.serverRequired:(error.message||t.serverSaveFailed)}})},forcePublish?0:900)}
      function saveDraft(){if(textbookMode&&valid(true))renderPreview();else panel.querySelector('#pbPreviewBox').hidden=true;try{localStorage.setItem(draftKey,JSON.stringify(readData()))}catch(error){if(status)status.textContent=ru?'Не удалось сохранить черновик в этом браузере.':'Нобайды осы браузерде сақтау мүмкін болмады.'}scheduleServerSave()}
     function outputRu(){return docLang.value==='ru'}
@@ -423,6 +423,40 @@
         const optional=document.createElement('details');optional.className='pb-source-details';const summary=document.createElement('summary');summary.textContent=ru?'Добавить текст параграфа или задания (необязательно)':'Параграф не тапсырма мәтінін қосу (міндетті емес)';optional.append(summary);content.append(optional);
         const labels=ru?['Страницы / параграф','Фрагмент учебника или задание (до 2000 символов)']:['Беттер / параграф','Оқулық үзіндісі не тапсырма (2000 таңбаға дейін)'];
         ['pbBookPages','pbBookText'].forEach((id,i)=>{const label=document.createElement('label');label.className='pb-field';label.textContent=labels[i];const input=document.createElement(i?'textarea':'input');input.id=id;input.maxLength=i?2000:100;input.value=(i?old?.textbook?.excerpt:old?.textbook?.pages)||'';label.append(input);optional.append(label);});
+        const methodLabel=document.createElement('label');methodLabel.className='pb-field';
+        methodLabel.textContent=ru?'Формат урока':'Сабақ форматы';
+        const method=document.createElement('select');method.id='pbMethod';
+        method.add(new Option(ru?'По предмету и теме':'Пән мен тақырыпқа сай','subject'));
+        method.add(new Option(ru?'Исследование в парах':'Жұптық зерттеу','research'));
+        method.add(new Option(ru?'Практикум с взаимопроверкой':'Өзара тексеру практикумы','practice'));
+        method.value=old?.textbook?.method||'subject';methodLabel.append(method);optional.before(methodLabel);
+        const fileLabel=document.createElement('label');fileLabel.className='pb-field';
+        fileLabel.textContent=ru?'Открыть свой учебник в TXT и выбрать фрагмент':'Өз оқулығыңызды TXT форматында ашып, үзінді таңдаңыз';
+        const file=document.createElement('input');file.type='file';file.accept='.txt,text/plain';fileLabel.append(file);
+        const passage=document.createElement('select');passage.hidden=true;passage.setAttribute('aria-label',ru?'Фрагменты текста':'Мәтін үзінділері');
+        const message=document.createElement('p');message.setAttribute('role','status');optional.append(fileLabel,message,passage);
+        let passages=[],loadId=0;
+        function resetReader(){loadId++;file.value='';passages=[];passage.replaceChildren();passage.hidden=true;message.textContent='';}
+        file.onchange=async()=>{
+          const selected=file.files[0],id=++loadId;passages=[];passage.hidden=true;
+          if(!selected)return;
+          try{
+            if(selected.size>8*1024*1024)throw Error();
+            const raw=await selected.text();if(id!==loadId)return;
+            if(raw.includes('\0'))throw Error();
+            let chunk='';
+            for(const line of raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean)){
+              if(chunk&&(chunk.length+line.length>1950||/^§/.test(line))){passages.push(chunk);chunk='';}
+              let rest=line;while(rest.length>1950){const boundary=rest.lastIndexOf(' ',1950);const end=boundary>1000?boundary:1950;passages.push(rest.slice(0,end));rest=rest.slice(end).trimStart();}
+              chunk=[chunk,rest].filter(Boolean).join('\n');
+            }
+            if(chunk)passages.push(chunk);if(!passages.length)throw Error();
+            passage.replaceChildren(new Option(ru?'Выберите фрагмент':'Үзіндіні таңдаңыз',''));
+            passages.forEach((s,i)=>passage.add(new Option((i+1)+'. '+s.slice(0,90),String(i))));
+            passage.hidden=false;message.textContent=ru?'Файл открыт на устройстве. В план попадёт только выбранный фрагмент.':'Файл құрылғыда ашылды. Жоспарға таңдалған үзінді ғана қосылады.';
+          }catch{if(id===loadId)message.textContent=ru?'Выберите непустой файл TXT в UTF-8 до 8 МБ.':'UTF-8 пішіміндегі 8 МБ-тан аспайтын мәтіндік TXT файлды таңдаңыз.';}
+        };
+        passage.onchange=()=>{if(passage.value==='')return;const excerpt=form.querySelector('#pbBookText');excerpt.value=passages[Number(passage.value)];excerpt.dispatchEvent(new Event('input',{bubbles:true}));};
         const topicSources=document.createElement('div');topicSources.className='pb-book-links';optional.append(topicSources);
         const result=document.createElement('section');result.id='pbGeneratedPlan';result.className='pb-book-step';result.hidden=true;content.after(result);
         const officialInfo=document.createElement('div');
@@ -491,7 +525,7 @@
           topicSources.replaceChildren();sources.forEach((s,i)=>{const a=document.createElement('a');a.href=s.url+(/\.pdf(?:$|\?)/i.test(s.url)&&s.pages?.[0]?'#page='+s.pages[0]:'');a.target='_blank';a.rel='noopener noreferrer';a.textContent=(ru?'Открыть источник оглавления':'Мазмұн дереккөзін ашу')+(sources.length>1?' '+(i+1):'');topicSources.append(a);});
         }
         function showBook(clear=false){
-          if(clear)clearTopic();const book=available.find(b=>b.id===picker.value),isManual=picker.value==='__other';
+          if(clear){clearTopic();resetReader();}const book=available.find(b=>b.id===picker.value),isManual=picker.value==='__other';
           manual.hidden=!isManual;content.hidden=!book&&!isManual;bookInfo.hidden=!book;title.value=book?bookTitle(book):isManual?(clear?'':title.value):'';links.replaceChildren();
           if(book){details.textContent=[book.title,book.authors,book.year,book.publisher,book.track].filter(Boolean).join(' · ');book.urls.forEach((url,i)=>{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=(ru?'Открыть учебник':'Оқулықты ашу')+(book.urls.length>1?' '+(i+1):'');links.append(a);});}
           fillTopicChoices();
@@ -551,6 +585,17 @@
             next.rows[2][3]=key;
             next.rows[3][1]=homework;
           }
+          const method=d.textbook.method, topic=d.fields[4];
+          if(method==='research'){
+            next.rows[0][1]=(r?'Какие два объяснения можно предложить по теме «':'«')+topic+(r?'»? Запишите предположения до чтения.':'» тақырыбы бойынша екі болжам ұсыныңыз. Оқымай тұрып жазып алыңыз.');
+            next.rows[2][1]=(r?'В парах проверьте предположения по параграфу. Подготовьте таблицу «предположение — свидетельство — вывод». ':'Жұпта болжамдарды параграф бойынша тексеріңіз. «Болжам — дәлел — қорытынды» кестесін толтырыңыз. ')+(lesson?.[2]||topic);
+            next.rows[2][2]=r?'Сопоставляют свидетельства и объясняют, какое предположение пришлось уточнить.':'Дәлелдерді салыстырып, қай болжамды нақтылағанын түсіндіреді.';
+            next.rows[2][3]=r?'Партнёр проверяет, следует ли вывод из приведённого свидетельства.':'Жұбы қорытындының келтірілген дәлелге сәйкестігін тексереді.';
+          }else if(method==='practice'){
+            next.rows[2][1]=(lesson?.[2]||topic)+(r?' Выполните индивидуально. Обменяйтесь работами и укажите один шаг, который нужно пояснить.':' Жеке орындаңыз. Жұмыстармен алмасып, түсіндіруді қажет ететін бір қадамды белгілеңіз.');
+            next.rows[2][2]=r?'Сдают первое решение, отзыв партнёра и исправленный вариант.':'Алғашқы шешімді, жұбының пікірін және түзетілген нұсқаны ұсынады.';
+            next.rows[2][3]=(lesson?.[3]||'')+(r?' Отметьте, какое исправление сделало ответ точнее.':' Жауапты нақтылаған түзетуді белгілеңіз.');
+          }
           if(text)next.fields[11]=(r?'Повторите материал учебника: ':'Оқулық материалын қайталаңыз: ')+ref+(r?'. Составьте краткий конспект и два вопроса по фрагменту.':'. Үзінді бойынша қысқаша конспект пен екі сұрақ құрастырыңыз.');
         }
         const confirmed=officialCurriculum.matched[d.textbook?.id]?.[d.fields[4]];
@@ -568,7 +613,7 @@
       const queue=()=>{clearTimeout(timer);timer=setTimeout(regenerate,450);};
       [subjectSelect,gradeSelect,customSubjectInput,customGradeInput,form.querySelector('[data-pb-field="4"]'),docLang].forEach(el=>{el.addEventListener('input',queue);el.addEventListener('change',queue);});
       const note=panel.querySelector('.pb-language>span');if(note)note.textContent=ru?'Текст создаётся на языке готового плана. Язык обучения в классе фильтрует учебники. Введённый вами текст автоматически не переводится.':'Жоспар мәтіні «Дайын жоспар тілі» бойынша құрылады. Сыныптың оқыту тілі тек оқулықтар тізімін сүзеді. Өз мәтініңіз автоматты аударылмайды.';
-      if(textbookMode)['pbBookSelect','pbBookTitle','pbBookPages','pbBookText'].forEach(id=>{const input=form.querySelector('#'+id);input.addEventListener('input',queue);input.addEventListener('change',queue);});
+      if(textbookMode)['pbMethod','pbBookSelect','pbBookTitle','pbBookPages','pbBookText'].forEach(id=>{const input=form.querySelector('#'+id);input.addEventListener('input',queue);input.addEventListener('change',queue);});
       regenerate();
     }
     renderTopicIdeas();if(textbookMode)panel.querySelector('#pbTopicIdeas').parentElement.hidden=true;makeCatalogSuggestions();panel.style.display='flex';

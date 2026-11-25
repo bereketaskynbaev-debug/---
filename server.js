@@ -287,7 +287,13 @@ const server = http.createServer(async (req, res) => {
       const disposition = viewMode && row.mime === 'application/pdf' ? 'inline' : 'attachment';
       res.writeHead(200, {'Content-Type': row.mime, 'Content-Disposition': `${disposition}; filename*=UTF-8''${encodeURIComponent(row.original_name)}`, 'X-Content-Type-Options':'nosniff', 'Cache-Control':'no-store'}); return cloudMode ? res.end(cloudFile) : fs.createReadStream(filePath).pipe(res);
     }
-    if (req.method === 'GET' && ['/expanded-plans.js', '/planner-builder.js', '/release-guards.js', '/open-source-links.js', '/journal-shortcuts.js'].includes(url.pathname)) {
+    if (req.method === 'GET' && url.pathname === '/ktp-data.json') {
+      const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] || '');
+      res.writeHead(200, {'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-cache','Vary':'Accept-Encoding', ...(gzip ? {'Content-Encoding':'gzip'} : {})});
+      const stream = fs.createReadStream(path.join(ROOT,'ktp-data.json'));
+      return gzip ? stream.pipe(zlib.createGzip()).pipe(res) : stream.pipe(res);
+    }
+    if (req.method === 'GET' && ['/expanded-plans.js', '/planner-builder.js', '/release-guards.js', '/open-source-links.js', '/journal-shortcuts.js','/ktp-library.js'].includes(url.pathname)) {
       if (/\bgzip\b/.test(req.headers['accept-encoding'] || '')) {
         const body = zlib.gzipSync(fs.readFileSync(path.join(ROOT, path.basename(url.pathname))));
         res.writeHead(200, {'Content-Type':'application/javascript; charset=utf-8', 'Content-Encoding':'gzip', 'Vary':'Accept-Encoding', 'Cache-Control':'no-store'});
