@@ -136,7 +136,7 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, service: 'ustaz-local' });
     if (req.method === 'GET' && url.pathname === '/api/materials') {
-      const rows = (await db.prepare("SELECT id,title,description,kind,subject,grade,author,language,source_url,source_type,original_name,mime,status,created_at,reviewed_at,reviewer_note FROM materials WHERE status='published' ORDER BY created_at DESC").all());
+      const rows = (await db.prepare("SELECT id,title,description,kind,subject,grade,author,language,source_url,source_type,original_name,mime,status,created_at,reviewed_at,reviewer_note FROM materials WHERE status='published' AND id <> '990daf73-9371-4c1e-8782-b93e10a8defe' ORDER BY created_at DESC").all());
       return send(res, 200, rows);
     }
     if (req.method === 'POST' && url.pathname === '/api/planner/draft') {
