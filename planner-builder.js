@@ -442,7 +442,7 @@
       if(activity)html+='<div style="page-break-before:always"><h2>'+(r?'Материал для учителя':'Мұғалімге арналған материал')+'</h2>'+block(activity[3])+block(d.fields[11])+'</div>';
       return html;
     }
-    function readFormData(){const fields=Array(13).fill('');const outRu=docLang.value==='ru',subject=subjects().find(pair=>pair[0]===subjectSelect.value),grade=grades().find(pair=>pair[0]===gradeSelect.value);fields[0]=subjectSelect.value==='__other'?customSubjectInput.value.trim():subject?(outRu?subject[1]:subject[0]):'';fields[1]=gradeSelect.value==='__other'?customGradeInput.value.trim():grade?(outRu?grade[1]:grade[0]):'';for(const el of form.querySelectorAll('[data-pb-field]'))fields[Number(el.dataset.pbField)]=el.value.trim();syncOfficialGoal(fields);return {schoolDetails:Object.fromEntries([...schoolDetails.querySelectorAll('[data-school-field]')].map(el=>[el.dataset.schoolField,el.value.trim()])),textbook:textbookMode?{method:form.querySelector('#pbMethod')?.value||'subject',id:form.querySelector('#pbBookSelect')?.value||'',schoolLanguage:form.querySelector('#pbSchoolLanguage')?.value||docLang.value,title:form.querySelector('#pbBookTitle')?.value.trim()||'',pages:form.querySelector('#pbBookPages')?.value.trim()||'',excerpt:form.querySelector('#pbBookText')?.value.trim()||''}:null,fields,rows:[...tbody.rows].map(row=>[...row.querySelectorAll('[data-pb-cell]')].map(x=>x.value.trim())),materials:materials.slice(),documentLanguage:docLang.value,author:panel.querySelector('#pbAuthor').value.trim()}}
+    function readFormData(){const fields=Array(13).fill('');const outRu=docLang.value==='ru',subject=subjects().find(pair=>pair[0]===subjectSelect.value),grade=grades().find(pair=>pair[0]===gradeSelect.value);fields[0]=subjectSelect.value==='__other'?customSubjectInput.value.trim():subject?(outRu?subject[1]:subject[0]):'';fields[1]=gradeSelect.value==='__other'?customGradeInput.value.trim():grade?(outRu?grade[1]:grade[0]):'';for(const el of form.querySelectorAll('[data-pb-field]'))fields[Number(el.dataset.pbField)]=el.value.trim();syncOfficialGoal(fields);return {schoolDetails:Object.fromEntries([...schoolDetails.querySelectorAll('[data-school-field]')].map(el=>[el.dataset.schoolField,el.value.trim()])),textbook:textbookMode?{method:form.querySelector('#pbMethod')?.value||'subject',id:form.querySelector('#pbBookSelect')?.value||'',languageFilter:form.querySelector('#pbSchoolLanguage')?.value,schoolLanguage:TEXTBOOK_CATALOG.find(b=>b.id===form.querySelector('#pbBookSelect')?.value)?.language||(form.querySelector('#pbSchoolLanguage')?.value==='all'?docLang.value:form.querySelector('#pbSchoolLanguage')?.value)||docLang.value,title:form.querySelector('#pbBookTitle')?.value.trim()||'',pages:form.querySelector('#pbBookPages')?.value.trim()||'',excerpt:form.querySelector('#pbBookText')?.value.trim()||''}:null,fields,rows:[...tbody.rows].map(row=>[...row.querySelectorAll('[data-pb-cell]')].map(x=>x.value.trim())),materials:materials.slice(),documentLanguage:docLang.value,author:panel.querySelector('#pbAuthor').value.trim()}}
     function readData(){
       const d=readFormData(), select=form.querySelector('#pbTopicSelect'), book=d.textbook;
       if(!book||!select||select.value==='')return d;
@@ -514,7 +514,7 @@
         const source=document.createElement('section');source.className='pb-book-step';source.id='pbChooseBook';source.hidden=true;
         source.innerHTML='<h3>'+ (ru?'Учебник и оглавление':'Оқулық пен мазмұны') +'</h3>';first.after(source);
         const schoolLabel=document.createElement('label');schoolLabel.className='pb-field';schoolLabel.textContent=ru?'Язык учебника':'Оқулық тілі';
-        const school=document.createElement('select');school.id='pbSchoolLanguage';school.add(new Option('Қазақша','kk'));school.add(new Option('Русский','ru'));school.value=old?.textbook?.schoolLanguage||docLang.value;schoolLabel.append(school);source.append(schoolLabel);
+        const school=document.createElement('select');school.id='pbSchoolLanguage';school.add(new Option(ru?'Все языки обучения':'Барлық оқыту тілдері','all'));school.add(new Option('Қазақша','kk'));school.add(new Option('Русский','ru'));school.value=old?.textbook?.languageFilter||old?.textbook?.schoolLanguage||'all';schoolLabel.append(school);source.append(schoolLabel);
         const bookLabel=document.createElement('label');bookLabel.className='pb-field';bookLabel.textContent=ru?'Выберите учебник вашего класса':'Сыныбыңыздың оқулығын таңдаңыз';
         const picker=document.createElement('select');picker.id='pbBookSelect';bookLabel.append(picker);source.append(bookLabel);
         const bookInfo=document.createElement('details');bookInfo.className='pb-source-details';
@@ -670,19 +670,20 @@
         }
         function refreshBooks(clear=false){
           const subject=subjectSelect.value==='__other'?customSubjectInput.value.trim():subjectSelect.value,gradeValue=gradeSelect.value==='__other'?customGradeInput.value.trim():gradeSelect.value;
-          subjectSelect.disabled=!gradeValue;subjectLabel.hidden=!gradeValue;source.hidden=!subject||!gradeValue;
+          subjectSelect.disabled=!gradeValue;subjectLabel.hidden=!gradeValue;source.hidden=!gradeValue;
           hint.textContent=!gradeValue?(ru?'Выберите класс, чтобы перейти к предмету.':'Пәнге өту үшін сыныпты таңдаңыз.'):!subject?(ru?'Теперь выберите предмет. После этого появятся учебники вашего класса.':'Енді пәнді таңдаңыз. Содан кейін сыныбыңыздың оқулықтары көрсетіледі.'):(ru?'Учебники отобраны по выбранным классу и предмету.':'Оқулықтар таңдалған сынып пен пән бойынша іріктелді.');
           const grade=Number((gradeValue.match(/\d+/)||[])[0]||0);
-          available=TEXTBOOK_CATALOG.filter(b=>b.grade===grade&&b.language===school.value&&b.subject===subject).sort((a,b)=>(topicCount(b)>0)-(topicCount(a)>0)||b.year-a.year||a.title.localeCompare(b.title));
+          available=TEXTBOOK_CATALOG.filter(b=>b.grade===grade&&(school.value==='all'||b.language===school.value)&&(!subject||b.subject===subject)).sort((a,b)=>(topicCount(b)>0)-(topicCount(a)>0)||b.year-a.year||a.title.localeCompare(b.title));
           picker.replaceChildren(new Option(ru?'Выберите учебник…':'Оқулықты таңдаңыз…',''));
           const ready=available.filter(b=>topicCount(b)),other=available.filter(b=>!topicCount(b));
-          for(const [books,label] of [[ready,ru?'С готовым оглавлением':'Дайын мазмұны бар'],[other,ru?'Оглавление ещё не подключено':'Мазмұны әлі қосылмаған']]){if(!books.length)continue;const group=document.createElement('optgroup');group.label=label;books.forEach(b=>group.append(new Option(bookTitle(b)+(topicCount(b)?' · '+topicCount(b)+(ru?' тем':' тақырып'):''),b.id)));picker.append(group);}
+          for(const [books,label] of [[ready,ru?'С готовым оглавлением':'Дайын мазмұны бар'],[other,ru?'Оглавление ещё не подключено':'Мазмұны әлі қосылмаған']]){if(!books.length)continue;const group=document.createElement('optgroup');group.label=label;books.forEach(b=>group.append(new Option((b.language==='ru'?'РУС':'ҚАЗ')+' · '+bookTitle(b)+(topicCount(b)?' · '+topicCount(b)+(ru?' тем':' тақырып'):''),b.id)));picker.append(group);}
+          if(grade)hint.textContent=(ru?'Найдено изданий: ':'Табылған басылымдар: ')+available.length+(subject?'':(ru?'. Можно выбрать книгу сразу или уточнить предмет.':'. Оқулықты бірден таңдаңыз немесе пәнді нақтылаңыз.'));
           picker.add(new Option(ru?'Моего учебника нет — указать вручную':'Менің оқулығым жоқ — қолмен енгізу','__other'));
           if(!clear&&title.value)picker.value=(available.find(b=>b.id===old?.textbook?.id)||available.find(b=>bookTitle(b)===title.value))?.id||'__other';
           if(!source.hidden&&!available.length)hint.textContent=ru?'Для этого класса, предмета и языка в каталоге пока нет учебника. Попробуйте другой язык учебника или укажите свой.':'Бұл сынып, пән және тіл үшін каталогта оқулық әзірге жоқ. Оқулықтың басқа тілін таңдаңыз немесе өз оқулығыңызды көрсетіңіз.';
           showBook(clear);
         }
-        picker.addEventListener('change',()=>{showBook(true);saveDraft();if(!content.hidden){const target=activeTopics.length?topicChoice:topicField;target.focus();}});
+        picker.addEventListener('change',()=>{const selectedBook=available.find(b=>b.id===picker.value);if(selectedBook&&!subjectSelect.value){subjectSelect.value=selectedBook.subject;refreshBooks(true);picker.value=selectedBook.id;}showBook(true);askLanguage();saveDraft();if(!content.hidden){const target=activeTopics.length?topicChoice:topicField;target.focus();}});
         gradeSelect.addEventListener('change',()=>{subjectSelect.value='';customSubjectInput.value='';customSubjectInput.hidden=true;refreshBooks(true);saveDraft();});
         [subjectSelect,school].forEach(el=>el.addEventListener('change',()=>{refreshBooks(true);saveDraft();}));
         [customSubjectInput,customGradeInput].forEach(el=>el.addEventListener('input',()=>{refreshBooks(true);saveDraft();}));
@@ -692,10 +693,11 @@
         const oldClear=panel.querySelector('#pbClear').onclick;panel.querySelector('#pbClear').onclick=async()=>{await oldClear();if(!gradeSelect.value){refreshBooks(true);gradeSelect.focus();}};
         const languageHint=document.createElement('div'),useSchool=document.createElement('button');
         languageHint.className='pb-book-hint';useSchool.type='button';useSchool.className='secondary';
-        useSchool.onclick=()=>{docLang.value=school.value;docLang.dispatchEvent(new Event('change',{bubbles:true}));};
+        const bookLanguage=()=>available.find(b=>b.id===picker.value)?.language||(school.value==='all'?'':school.value);
+        useSchool.onclick=()=>{docLang.value=bookLanguage()||docLang.value;docLang.dispatchEvent(new Event('change',{bubbles:true}));};
         form.querySelector('.pb-language').after(languageHint);
         function explainLanguage(){
-          languageHint.replaceChildren();languageHint.hidden=docLang.value===school.value;
+          languageHint.replaceChildren();languageHint.hidden=!bookLanguage()||docLang.value===bookLanguage();
           if(languageHint.hidden)return;
           const language=docLang.value==='ru'?'Русский':'Қазақша';
           languageHint.append(ru?'Язык плана отличается от языка учебника. Оставить '+language+' или использовать язык учебника? ':'Жоспар тілі оқулық тілінен өзгеше. '+language+' тілін қалдырасыз ба, әлде оқулық тілін қолданасыз ба? ');
