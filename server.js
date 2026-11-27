@@ -352,8 +352,8 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, {'Content-Type':'application/javascript; charset=utf-8', 'Cache-Control':'no-store'});
       return fs.createReadStream(path.join(ROOT, path.basename(url.pathname))).pipe(res);
     }
-    if (req.method === 'GET' && url.pathname === '/') {
-      res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'}); return fs.createReadStream(path.join(ROOT,'index.html')).pipe(res);
+    if (req.method === 'GET' && ['/','/visits','/visits/'].includes(url.pathname)) {
+      res.writeHead(200, {'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store'}); return fs.createReadStream(path.join(ROOT,url.pathname==='/'?'index.html':'visits.html')).pipe(res);
     }
     return send(res, 404, { error: 'Not found' });
   } catch (err) {

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Посещения по дням</title>
+<style>*{box-sizing:border-box}body{margin:0;background:#f4f7f3;color:#173c35;font:17px/1.5 system-ui,sans-serif}main{max-width:620px;margin:6vh auto;background:white;padding:clamp(18px,5vw,40px);border-radius:16px}header{display:flex;justify-content:space-between;align-items:center}a{color:#126253}h1{font-size:1.7rem}label,input{display:block}input,button{font:inherit;padding:.55em .9em;border:1px solid #76968d;border-radius:7px}input{width:100%;margin:.35em 0 1em}button{cursor:pointer;background:#116854;color:white}header button{background:white;color:#174e42}table{border-collapse:collapse;width:100%;margin-top:1em}td,th{padding:.5em;text-align:left;border-bottom:1px solid #d8e3df}</style></head>
+<body><main><header><a id="home" href="/">В приложение</a><button id="lang" type="button">Қазақша</button></header>
+<h1 id="title">Посещения по дням</h1><form id="login" hidden><p id="help"></p><label for="password" id="label"></label><input id="password" type="password" autocomplete="current-password" required><button id="enter"></button></form>
+<p role="status" id="status"></p><button id="refresh" type="button" hidden></button><table hidden id="report"><thead><tr><th id="date"></th><th id="visits"></th></tr></thead><tbody></tbody></table></main>
+<script>
+const el=id=>document.getElementById(id);
+let ru=true;try{ru=localStorage.getItem('ustaz-lang')!=='kk'}catch{}
+const t=(a,b)=>ru?a:b;
+let message='';
+function labels(){
+  document.documentElement.lang=ru?'ru':'kk';document.title=el('title').textContent=t('Посещения по дням','Күн сайынғы кіру саны');
+  el('home').textContent=t('В приложение','Қолданбаға');el('lang').textContent=t('Қазақша','Русский');
+  el('help').textContent=t('Войдите с паролем администратора приложения. Владелец задаёт его в Render, в разделе Environment, под именем USTAZ_ADMIN_PASSWORD.','Қолданба әкімшісінің құпиясөзін енгізіңіз. Оны иесі Render жүйесінің Environment бөлімінде USTAZ_ADMIN_PASSWORD атауымен орнатады.');
+  el('label').textContent=t('Пароль администратора','Әкімші құпиясөзі');el('enter').textContent=t('Открыть отчёт','Есепті ашу');
+  el('refresh').textContent=t('Обновить','Жаңарту');el('date').textContent=t('Дата','Күні');el('visits').textContent=t('Посещения','Кіру саны');
+  const texts={loading:t('Загрузка…','Жүктелуде…'),wrong:t('Пароль не подошёл. Проверьте пароль администратора приложения.','Құпиясөз сәйкес келмеді. Қолданба әкімшісінің құпиясөзін тексеріңіз.'),error:t('Не удалось загрузить отчёт. Повторите попытку.','Есеп жүктелмеді. Қайталап көріңіз.'),ready:t('Один браузер учитывается один раз в сутки по времени Казахстана.','Бір браузер Қазақстан уақытымен тәулігіне бір рет есептеледі.')};el('status').textContent=texts[message]||'';
+}
+async function load(event){
+  event?.preventDefault();const signing=event?.type==='submit';el('enter').disabled=el('refresh').disabled=true;message='loading';labels();
+  try{
+    if(signing){const res=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:el('password').value})});
+      if(res.status===401){message='wrong';return}if(!res.ok)throw Error();el('password').value='';}
+    const r=await fetch('/api/admin/visits',{cache:'no-store'});
+    if(r.status===401){el('report').hidden=el('refresh').hidden=true;el('report').tBodies[0].replaceChildren();el('login').hidden=false;message='';el('password').focus();return}
+    if(!r.ok)throw Error();const {days}=await r.json();const body=el('report').tBodies[0];body.replaceChildren();
+    for(const item of days){const row=body.insertRow();row.insertCell().textContent=item.day.split('-').reverse().join('.');row.insertCell().textContent=item.visits}
+    el('login').hidden=true;el('report').hidden=el('refresh').hidden=false;message='ready';
+  }catch{message='error';el('refresh').hidden=false}
+  finally{el('enter').disabled=el('refresh').disabled=false;labels()}
+}
+el('login').onsubmit=load;el('refresh').onclick=load;el('lang').onclick=()=>{ru=!ru;labels()};load();
+</script></body></html>

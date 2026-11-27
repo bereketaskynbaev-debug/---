@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="kk">
-<head>
+<head><script>if(location.hash==='#visits')location.replace('/visits')</script>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f8f5">
 <title>Ұстаз Жоспар | Сабақ жоспарлары</title>
 <style>
@@ -199,7 +199,7 @@ async function loadVisitReport(){
   }catch{box.hidden=false;box.textContent=appLang==='ru'?'Статистика временно недоступна.':'Статистика уақытша қолжетімсіз.'}
 }
 (()=>{
-  function openStats(){if(location.hash==='#visits'){openContribution();showAdmin();}}
+  function openStats(){if(location.hash==='#visits')location.replace('/visits');}
   openStats();window.addEventListener('hashchange',openStats);
   let inFlight=false,lastDay='',memory;
   async function countVisit(){
