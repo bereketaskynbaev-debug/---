@@ -542,6 +542,15 @@
         const infoSummary=document.createElement('summary');infoSummary.textContent=ru?'Авторы, издание и ссылка на учебник':'Авторлар, басылым және оқулық сілтемесі';bookInfo.append(infoSummary);
         const details=document.createElement('p');details.className='pb-book-hint';bookInfo.append(details);
         const links=document.createElement('div');links.className='pb-book-links';bookInfo.append(links);source.append(bookInfo);
+        const annual=document.createElement('button');annual.type='button';annual.className='secondary';annual.id='pbAnnualKtp';annual.hidden=true;
+        annual.textContent=ru?'КТП на год':'Жылдық КТЖ';source.append(annual);
+        function annualContext(){
+          const grade=Number((gradeSelect.value==='__other'?customGradeInput.value:gradeSelect.value).match(/\d+/)?.[0]);
+          const pair=subjects().find(x=>x[0]===subjectSelect.value);
+          const subject=pair?.[docLang.value==='ru'?1:0]||(subjectSelect.value==='__other'?customSubjectInput.value.trim():'');
+          return {grade,subject,language:docLang.value};
+        }
+        annual.onclick=()=>document.dispatchEvent(new CustomEvent('ustaz-annual-ktp',{detail:annualContext()}));
         const manual=document.createElement('div');manual.hidden=true;source.append(manual);
         const titleLabel=document.createElement('label');titleLabel.className='pb-field';titleLabel.textContent=ru?'Название учебника, автор и год издания':'Оқулық атауы, авторы және шыққан жылы';
         const title=document.createElement('input');title.id='pbBookTitle';title.maxLength=250;title.value=old?.textbook?.title||'';titleLabel.append(title);manual.append(titleLabel);
@@ -687,6 +696,7 @@
           if(clear){clearTopic();resetReader();}const book=available.find(b=>b.id===picker.value),isManual=picker.value==='__other';
           manual.hidden=!isManual;content.hidden=!book&&!isManual;bookInfo.hidden=!book;title.value=book?bookTitle(book):isManual?(clear?'':title.value):'';links.replaceChildren();
           if(book){details.textContent=[book.title,book.authors,book.year,book.publisher,book.track].filter(Boolean).join(' · ');book.urls.forEach((url,i)=>{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=(ru?'Открыть учебник':'Оқулықты ашу')+(book.urls.length>1?' '+(i+1):'');links.append(a);});}
+          const context=annualContext();annual.hidden=!(context.grade && context.subject);
           fillTopicChoices();
         }
         function refreshBooks(clear=false){
