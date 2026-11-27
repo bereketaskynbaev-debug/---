@@ -56,6 +56,19 @@ for (const [table, column, definition] of [
 ]) if (!db.prepare(`PRAGMA table_info(${table})`).all().some(col => col.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 
 }
+// Keep visit tokens outside the schema exposed by the Supabase Data API.
+const visitTable = cloudMode ? 'ustaz_private.daily_visits' : 'daily_visits';
+const visitDay = new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Almaty',year:'numeric',month:'2-digit',day:'2-digit'});
+let visitSetup;
+async function prepareVisits(){
+  if(!visitSetup)visitSetup=(async()=>{
+    if(cloudMode)await db.prepare('CREATE SCHEMA IF NOT EXISTS ustaz_private').run();
+    await db.prepare('CREATE TABLE IF NOT EXISTS '+visitTable+' (day TEXT NOT NULL, token TEXT NOT NULL, PRIMARY KEY(day,token))').run();
+    if(cloudMode)await db.prepare('ALTER TABLE '+visitTable+' ENABLE ROW LEVEL SECURITY').run();
+    await db.prepare('INSERT INTO '+visitTable+' (day,token) VALUES (?,?) ON CONFLICT DO NOTHING').run(visitDay.format(Date.now()),'');
+  })().catch(error=>{visitSetup=null;throw error});
+  return visitSetup;
+}
 const ADMIN_FILE = path.join(STORE, 'admin-password.txt');
 let adminPassword = process.env.USTAZ_ADMIN_PASSWORD;
 if (process.env.NODE_ENV === 'production' && !adminPassword) throw new Error('Set USTAZ_ADMIN_PASSWORD in the production environment before starting Ustaz.');
@@ -134,6 +147,16 @@ function validText(v, max) { return typeof v === 'string' && v.length > 0 && v.l
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   try {
+    if(req.method==='POST' && url.pathname==='/api/visit'){
+      if(req.headers['sec-fetch-site']==='cross-site'||!(req.headers['content-type']||'').startsWith('application/json'))return send(res,403,{});
+      const token=(await readBody(req,128)).toString('utf8');
+      if(!/^"[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}"$/i.test(token))return send(res,400,{});
+      await prepareVisits();
+      const day=visitDay.format(Date.now());
+      const digest=crypto.createHash('sha256').update(day+token).digest('hex');
+      await db.prepare('INSERT INTO '+visitTable+' (day,token) VALUES (?,?) ON CONFLICT DO NOTHING').run(day,digest);
+      return send(res,200,{day});
+    }
     if (req.method === 'GET' && url.pathname === '/api/health') return send(res, 200, { ok: true, service: 'ustaz-local' });
     if (req.method === 'GET' && url.pathname === '/api/materials') {
       const rows = (await db.prepare("SELECT id,title,description,kind,subject,grade,author,language,source_url,source_type,original_name,mime,status,created_at,reviewed_at,reviewer_note FROM materials WHERE status='published' AND id <> '990daf73-9371-4c1e-8782-b93e10a8defe' ORDER BY created_at DESC").all());
@@ -249,6 +272,16 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname.startsWith('/api/admin/')) {
       if (!isAdmin(req)) return send(res, 401, { error: 'Әкімші ретінде кіріңіз / Войдите как администратор' });
+      if(req.method==='GET' && url.pathname==='/api/admin/visits'){
+        await prepareVisits();
+        const rows=await db.prepare("SELECT day,COUNT(NULLIF(token,'')) AS visits FROM "+visitTable+" GROUP BY day ORDER BY day DESC").all();
+        const counts=new Map(rows.map(row=>[row.day,Number(row.visits)]));
+        const today=visitDay.format(Date.now()), start=rows.at(-1)?.day||today, days=[];
+        for(let date=Date.parse(today); date>=Date.parse(start);date-=86400000){
+          const day=new Date(date).toISOString().slice(0,10);days.push({day,visits:counts.get(day)||0});
+        }
+        return send(res,200,{days});
+      }
       if (req.method === 'GET' && url.pathname === '/api/admin/pending') return send(res, 200, (await db.prepare("SELECT * FROM materials WHERE status='pending' OR (status='published' AND kind='lesson' AND reviewer_note<>'curriculum-reviewed') ORDER BY created_at").all()).map(safeRow));
       if (req.method === 'GET' && url.pathname === '/api/admin/feedback') return send(res, 200, (await db.prepare("SELECT * FROM feedback WHERE status='pending' ORDER BY created_at").all()));
       if (req.method === 'GET' && url.pathname === '/api/admin/community') {
@@ -330,6 +363,7 @@ const server = http.createServer(async (req, res) => {
 });
 const port = Number(process.env.PORT || 4180), host = process.env.HOST || '0.0.0.0';
 server.listen(port, host, () => {
+  prepareVisits().catch(()=>console.error('Visit statistics initialization deferred'));
   console.log(`Ұстаз сервері / Сервер Ustaz: http://127.0.0.1:${port}`);
   if (host === '0.0.0.0') for (const entries of Object.values(os.networkInterfaces())) for (const addr of entries || []) if (addr.family === 'IPv4' && !addr.internal) console.log(`Мектеп желісінен / В сети школы: http://${addr.address}:${port}`);
   if (!process.env.USTAZ_ADMIN_PASSWORD) console.log(`Әкімші құпиясөзі / Пароль администратора: ${adminPassword}`);
