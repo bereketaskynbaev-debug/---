@@ -699,24 +699,61 @@
           const context=annualContext();annual.hidden=!(context.grade && context.subject);
           fillTopicChoices();
         }
+        const fastLabel=document.createElement('label');
+        fastLabel.className='pb-field';fastLabel.hidden=true;
+        fastLabel.textContent=ru?'Быстрый план по теме':'Тақырып бойынша жылдам жоспар';
+        const fastInput=document.createElement('input');fastInput.type='search';
+        fastInput.placeholder=ru?'Введите название темы или § и номер':'Тақырып атауын немесе § және нөмірін енгізіңіз';
+        fastLabel.append(fastInput);first.append(fastLabel);
+        const fastResults=document.createElement('div');fastResults.className='pb-topic-ideas';first.append(fastResults);
+        const fastStatus=document.createElement('p');fastStatus.className='pb-book-hint';fastStatus.setAttribute('role','status');first.append(fastStatus);
+        function clearFastSearch(){fastInput.value='';fastResults.replaceChildren();fastStatus.textContent='';}
+        fastInput.addEventListener('input',()=>{
+          fastResults.replaceChildren();fastStatus.textContent='';
+          const query=fastInput.value.toLocaleLowerCase().trim();
+          if(!query)return;
+          const number=query.match(/^§?\s*(\d+)$/)?.[1],words=query.split(/\s+/);
+          let count=0;
+          for(const book of available){
+            let index=0;
+            for(const source of TEXTBOOK_CONTENTS[book.id]||[])for(const row of source.rows){
+              const value=String(index++),title=row[1].toLocaleLowerCase();
+              if(number?String(row[0])!==number:!words.every(word=>title.includes(word)))continue;
+              if(++count>8)continue;
+              const choice=document.createElement('button');choice.type='button';choice.className='pb-topic-chip';
+              const reference=[source.part?(ru?'Часть ':'Бөлім ')+source.part:'',row[2]?(ru?'стр. ':'бет ')+row[2]:''].filter(Boolean).join(' · ');
+              choice.textContent=[(row[0]?'§ '+row[0]+'. ':'')+row[1],book.title,book.authors,book.year,book.publisher,reference].filter(Boolean).join(' · ');
+              choice.onclick=()=>{
+                picker.value=book.id;picker.dispatchEvent(new Event('change',{bubbles:true}));
+                topicChoice.value=value;topicChoice.dispatchEvent(new Event('change',{bubbles:true}));
+                clearFastSearch();
+                const preview=form.querySelector('#pbPreviewBox');preview.tabIndex=-1;preview.focus();preview.scrollIntoView({block:'start'});
+              };
+              fastResults.append(choice);
+            }
+          }
+          fastStatus.textContent=count?(ru?'Найдено: ':'Табылғаны: ')+count+(count>8?(ru?'. Показаны первые 8. Уточните тему или выберите предмет.':'. Алғашқы 8 нәтиже көрсетілді. Тақырыпты нақтылаңыз немесе пәнді таңдаңыз.'):''):(ru?'Совпадений нет. Можно выбрать учебник и ввести свою тему.':'Сәйкес тақырып жоқ. Оқулықты таңдап, өз тақырыбыңызды енгізіңіз.');
+        });
         function refreshBooks(clear=false){
           const subject=subjectSelect.value==='__other'?customSubjectInput.value.trim():subjectSelect.value,gradeValue=gradeSelect.value==='__other'?customGradeInput.value.trim():gradeSelect.value;
           subjectSelect.disabled=!gradeValue;subjectLabel.hidden=!gradeValue;source.hidden=!gradeValue;
           hint.textContent=!gradeValue?(ru?'Выберите класс, чтобы перейти к предмету.':'Пәнге өту үшін сыныпты таңдаңыз.'):!subject?(ru?'Теперь выберите предмет. После этого появятся учебники вашего класса.':'Енді пәнді таңдаңыз. Содан кейін сыныбыңыздың оқулықтары көрсетіледі.'):(ru?'Учебники отобраны по выбранным классу и предмету.':'Оқулықтар таңдалған сынып пен пән бойынша іріктелді.');
           const grade=Number((gradeValue.match(/\d+/)||[])[0]||0);
           available=TEXTBOOK_CATALOG.filter(b=>b.grade===grade&&(school.value==='all'||b.language==='both'||b.language===school.value)&&(!subject||b.subject===subject)).sort((a,b)=>(topicCount(b)>0)-(topicCount(a)>0)||b.year-a.year||a.title.localeCompare(b.title));
+          fastLabel.hidden=!grade||!available.some(book=>topicCount(book));clearFastSearch();
           picker.replaceChildren(new Option(ru?'Выберите учебник…':'Оқулықты таңдаңыз…',''));
           const ready=available.filter(b=>topicCount(b)),other=available.filter(b=>!topicCount(b));
           for(const [books,label] of [[ready,ru?'С готовым оглавлением':'Дайын мазмұны бар'],[other,ru?'Оглавление ещё не подключено':'Мазмұны әлі қосылмаған']]){if(!books.length)continue;const group=document.createElement('optgroup');group.label=label;books.forEach(b=>group.append(new Option((b.language==='both'?'ҚАЗ/РУС':b.language==='ru'?'РУС':'ҚАЗ')+' · '+bookTitle(b)+(topicCount(b)?' · '+topicCount(b)+(ru?' тем':' тақырып'):''),b.id)));picker.append(group);}
           if(grade)hint.textContent=(ru?'Найдено изданий: ':'Табылған басылымдар: ')+available.length+(subject?'':(ru?'. Можно выбрать книгу сразу или уточнить предмет.':'. Оқулықты бірден таңдаңыз немесе пәнді нақтылаңыз.'));
           picker.add(new Option(ru?'Моего учебника нет — указать вручную':'Менің оқулығым жоқ — қолмен енгізу','__other'));
+          if(clear&&subject&&available.length===1)picker.value=available[0].id;
           if(!clear&&title.value)picker.value=(available.find(b=>b.id===old?.textbook?.id)||available.find(b=>bookTitle(b)===title.value))?.id||'__other';
           if(!source.hidden&&!available.length)hint.textContent=ru?'Для этого класса, предмета и языка в каталоге пока нет учебника. Попробуйте другой язык учебника или укажите свой.':'Бұл сынып, пән және тіл үшін каталогта оқулық әзірге жоқ. Оқулықтың басқа тілін таңдаңыз немесе өз оқулығыңызды көрсетіңіз.';
           showBook(clear);
         }
         picker.addEventListener('change',()=>{const selectedBook=available.find(b=>b.id===picker.value);if(selectedBook&&!subjectSelect.value){subjectSelect.value=selectedBook.subject;refreshBooks(true);picker.value=selectedBook.id;}showBook(true);askLanguage();saveDraft();if(!content.hidden){const target=activeTopics.length?topicChoice:topicField;target.focus();}});
         gradeSelect.addEventListener('change',()=>{subjectSelect.value='';customSubjectInput.value='';customSubjectInput.hidden=true;refreshBooks(true);saveDraft();});
-        [subjectSelect,school].forEach(el=>el.addEventListener('change',()=>{refreshBooks(true);saveDraft();}));
+        [subjectSelect,school].forEach(el=>el.addEventListener('change',()=>{refreshBooks(true);askLanguage();saveDraft();}));
         [customSubjectInput,customGradeInput].forEach(el=>el.addEventListener('input',()=>{refreshBooks(true);saveDraft();}));
         topicSearch.addEventListener('input',fillTopicChoices);
         topicChoice.addEventListener('change',()=>{selectedTopicIndex=topicChoice.value===''?-1:Number(topicChoice.value);const row=activeTopics[selectedTopicIndex];if(!row)return;form.querySelector('#pbBookPages').readOnly=true;if(topicField.value!==row[1])form.querySelector('#pbBookText').value='';topicField.value=row[1];form.querySelector('#pbBookPages').value=[row[3]?(outputRu()?'Часть ':'Бөлім ')+row[3]:'',row[0]?'§ '+row[0]:'',row[2]?(outputRu()?'стр. ':'бет ')+row[2]:''].filter(Boolean).join(' / ');topicField.dispatchEvent(new Event('input',{bubbles:true}));flushPlan();});
